@@ -1,12 +1,16 @@
 package com.example.bookstore.controller;
 
+import com.example.bookstore.dto.OrderItemDiscountResponse;
 import com.example.bookstore.dto.OrderItemRequest;
+import com.example.bookstore.dto.OrderPreviewResponse;
 import com.example.bookstore.dto.OrderRequest;
 import com.example.bookstore.model.Book;
 import com.example.bookstore.model.Order;
 import com.example.bookstore.model.OrderItem;
 import com.example.bookstore.repository.BookRepository;
 import com.example.bookstore.repository.OrderRepository;
+import com.example.bookstore.rules.DiscountContext;
+import com.example.bookstore.rules.OrderDiscountService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,21 +25,61 @@ public class OrderController {
 
     private final BookRepository bookRepository;
     private final OrderRepository orderRepository;
+    private final OrderDiscountService discountService;
 
-    public OrderController(BookRepository bookRepository, OrderRepository orderRepository) {
+    public OrderController(BookRepository bookRepository, OrderRepository orderRepository, OrderDiscountService discountService) {
         this.bookRepository = bookRepository;
         this.orderRepository = orderRepository;
+        this.discountService = discountService;
     }
 
     @PostMapping
-    public ResponseEntity<Order> createOrder(@RequestBody OrderRequest request) {
+    public ResponseEntity<?> createOrder(@RequestBody OrderRequest request) {
+        try {
+            Order order = buildOrderFromRequest(request);
+            DiscountContext discountContext = discountService.evaluate(order);
+            order.setDiscountAmount(discountContext.getChosenDiscount());
+            order.setFinalAmount(order.getTotalAmount() - discountContext.getChosenDiscount());
+
+            Order saved = orderRepository.save(order);
+            OrderPreviewResponse response = buildResponse(order, discountContext);
+            return ResponseEntity.created(URI.create("/api/orders/" + saved.getId())).body(response);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ex.getMessage());
+        }
+    }
+
+    @PostMapping("/preview")
+    public ResponseEntity<?> previewOrder(@RequestBody OrderRequest request) {
+        try {
+            Order order = buildOrderFromRequest(request);
+            DiscountContext discountContext = discountService.evaluate(order);
+            return ResponseEntity.ok(buildResponse(order, discountContext));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ex.getMessage());
+        }
+    }
+
+    private Order buildOrderFromRequest(OrderRequest request) {
+        if (request.getCustomerUsername() == null || request.getCustomerUsername().isEmpty()) {
+            throw new IllegalArgumentException("Customer username is required");
+        }
+
+        if (request.getItems() == null || request.getItems().isEmpty()) {
+            throw new IllegalArgumentException("Order must contain at least one item");
+        }
+
         List<OrderItem> orderItems = new ArrayList<>();
         double totalAmount = 0.0;
 
         for (OrderItemRequest itemRequest : request.getItems()) {
+            if (itemRequest.getQuantity() <= 0) {
+                throw new IllegalArgumentException("Quantity must be greater than 0");
+            }
+
             Book book = bookRepository.findById(itemRequest.getBookId()).orElse(null);
             if (book == null) {
-                return ResponseEntity.badRequest().build();
+                throw new IllegalArgumentException("Book with ID " + itemRequest.getBookId() + " not found");
             }
 
             OrderItem orderItem = new OrderItem();
@@ -48,12 +92,49 @@ public class OrderController {
 
         Order order = new Order();
         order.setCustomerUsername(request.getCustomerUsername());
+        order.setPaymentMethod(request.getPaymentMethod() != null ? request.getPaymentMethod() : "cash");
         order.setCreatedAt(LocalDateTime.now());
-        order.setStatus("CREATED");
+        order.setStatus("PENDING");
         order.setTotalAmount(totalAmount);
         order.setItems(orderItems);
 
-        Order saved = orderRepository.save(order);
-        return ResponseEntity.created(URI.create("/api/orders/" + saved.getId())).body(saved);
+        return order;
+    }
+
+    private OrderPreviewResponse buildResponse(Order order, DiscountContext discountContext) {
+        List<OrderItemDiscountResponse> itemResponses = new ArrayList<>();
+        for (OrderItem item : order.getItems()) {
+            itemResponses.add(new OrderItemDiscountResponse(
+                    item.getBook().getId(),
+                    item.getBook().getTitle(),
+                    item.getQuantity(),
+                    item.getUnitPrice(),
+                    discountContext.getItemDiscount(item)
+            ));
+        }
+
+        return new OrderPreviewResponse(
+                order.getTotalAmount(),
+                discountContext.getChosenDiscount(),
+                order.getTotalAmount() - discountContext.getChosenDiscount(),
+                discountContext.getSelectedDiscountType(),
+                itemResponses
+        );
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getOrder(@PathVariable Long id) {
+        Order order = orderRepository.findById(id).orElse(null);
+        if (order == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(order);
+    }
+
+    @GetMapping("/user/{username}")
+    public ResponseEntity<List<Order>> getUserOrders(@PathVariable String username) {
+        List<Order> orders = orderRepository.findByCustomerUsername(username);
+        return ResponseEntity.ok(orders);
     }
 }
+

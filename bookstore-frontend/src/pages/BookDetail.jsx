@@ -3,13 +3,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { request, authHeader } from '../api';
 import RatingModal from '../components/RatingModal';
 
-function BookDetail({ token, username }) {
+function BookDetail({ token, username, onAddToCart }) {
   const { bookId } = useParams();
   const [book, setBook] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -59,6 +60,16 @@ function BookDetail({ token, username }) {
     }
   }
 
+  function handleAddToCart() {
+    if (!username) {
+      navigate('/login');
+      return;
+    }
+    onAddToCart(book, 1);
+    setSuccessMessage(`Added 1 copy to cart`);
+    setTimeout(() => setSuccessMessage(''), 3000);
+  }
+
   if (loading) {
     return <div className="card">Loading book details...</div>;
   }
@@ -89,12 +100,23 @@ function BookDetail({ token, username }) {
               onClick={handleOpenRatingModal}
               disabled={hasReviewed}
             >
-              {hasReviewed ? 'Already Reviewed' : 'Review this book'}
+              {hasReviewed ? 'Already Reviewed' : 'Review'}
+            </button>
+          )}
+          {username && username !== 'admin' && (
+            <button
+              className="btn btn-primary"
+              onClick={handleAddToCart}
+            >
+              Add to Cart
             </button>
           )}
         </div>
       </div>
-
+      {successMessage && (
+        <div className="success-message">{successMessage}</div>
+      )}
+      
       <div className="book-detail-grid">
         <div className="book-detail-image">
           <img
@@ -108,13 +130,15 @@ function BookDetail({ token, username }) {
           <h2>{book.title}</h2>
           <p className="book-detail-meta">by {book.author}</p>
           <div className="book-detail-tags">
-            <span className="book-tag">{book.genre}</span>
+            {book.genre ? book.genre.split(',').map((genreTag) => (
+              <span key={genreTag.trim()} className="book-tag">{genreTag.trim()}</span>
+            )) : null}
             <span className="book-tag">{book.publishedDate || 'Unknown'}</span>
             <span className="book-tag rating-pill">
               {book.ratingCount > 0 ? `${book.averageRating.toFixed(1)} ★ (${book.ratingCount})` : 'No ratings yet'}
             </span>
           </div>
-          <div className="detail-price">${book.price.toFixed(2)}</div>
+          <div className="detail-price">{book.price.toFixed(2)} RSD</div>
           <div className="detail-meta-line">Added on: {book.addedAt || 'N/A'}</div>
           <p className="detail-description">
             This title is a great choice for readers who enjoy modern classics with rich storytelling and 

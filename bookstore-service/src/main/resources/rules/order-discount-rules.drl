@@ -1,0 +1,70 @@
+package rules;
+
+import com.example.bookstore.model.Order;
+import com.example.bookstore.model.OrderItem;
+import com.example.bookstore.rules.DiscountContext;
+
+rule "Item discount for quantity"
+when
+    $item: OrderItem(quantity >= 2)
+    $ctx: DiscountContext()
+then
+    double total = $item.getQuantity() * $item.getUnitPrice();
+    $ctx.addItemDiscount($item, total * 0.10);
+end
+
+rule "Item discount for expensive item"
+when
+    $item: OrderItem()
+    eval($item.getQuantity() * $item.getUnitPrice() > 3000)
+    $ctx: DiscountContext()
+then
+    double total = $item.getQuantity() * $item.getUnitPrice();
+    $ctx.addItemDiscount($item, total * 0.05);
+end
+
+rule "Item discount for educational genre"
+when
+    $item: OrderItem($book: book)
+    eval(
+        $book != null &&
+        $book.getGenre() != null &&
+        $book.getGenre().toLowerCase().contains("learning and education") &&
+        $item.getQuantity() * $item.getUnitPrice() > 2000
+    )
+    $ctx: DiscountContext()
+then
+    double total = $item.getQuantity() * $item.getUnitPrice();
+    $ctx.addItemDiscount($item, total * 0.07);
+end
+
+rule "Order discount for 5 or more items"
+when
+    $order: Order()
+    eval($order.getItemCount() >= 5)
+    $ctx: DiscountContext()
+then
+    $ctx.setOrderDiscountTotal($order.getTotalAmount() * 0.15);
+end
+
+rule "Order discount for 3 or more items"
+when
+    $order: Order()
+    eval($order.getItemCount() >= 3 && $order.getItemCount() < 5)
+    $ctx: DiscountContext()
+then
+    $ctx.setOrderDiscountTotal($order.getTotalAmount() * 0.10);
+end
+
+rule "Choose best discount"
+when
+    $ctx: DiscountContext($itemTotal: itemDiscountTotal, $orderTotal: orderDiscountTotal)
+then
+    if ($orderTotal >= $itemTotal) {
+        $ctx.setChosenDiscount($orderTotal);
+        $ctx.setSelectedDiscountType("ORDER_DISCOUNT");
+    } else {
+        $ctx.setChosenDiscount($itemTotal);
+        $ctx.setSelectedDiscountType("ITEM_DISCOUNT");
+    }
+end

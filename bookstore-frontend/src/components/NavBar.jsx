@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
-import { FiLogOut, FiUserPlus } from 'react-icons/fi';
+import { FiLogOut, FiUserPlus, FiShoppingCart } from 'react-icons/fi';
 
-function NavBar({ username, onLogout }) {
+function NavBar({ username, onLogout, cartCount = 0 }) {
   return (
     <nav className="topbar">
       <div className="brand">Olive Bookstore</div>
@@ -9,6 +9,13 @@ function NavBar({ username, onLogout }) {
         <Link to="/books" className="tab">Books</Link>
       </div>
       <div className="actions">
+        {username && username !== 'admin' && (
+          <Link to="/cart" className="btn btn-outline cart-link">
+            <FiShoppingCart className="icon" />
+            Cart
+            {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
+          </Link>
+        )}
         {!username && (
           <Link to="/login" className="btn btn-outline">Login</Link>
         )}

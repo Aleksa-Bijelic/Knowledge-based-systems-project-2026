@@ -25,17 +25,31 @@ public class Order {
     @Column(nullable = false)
     private String status;
 
+    @Column(nullable = false)
+    private String paymentMethod;
+
+    @Column(name = "discount_amount", nullable = false, columnDefinition = "double precision default 0")
+    private double discountAmount = 0.0;
+
+    @Column(name = "final_amount", nullable = false, columnDefinition = "double precision default 0")
+    private double finalAmount = 0.0;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 
     public Order() {
+        this.discountAmount = 0.0;
+        this.finalAmount = 0.0;
     }
 
-    public Order(String customerUsername, LocalDateTime createdAt, double totalAmount, String status) {
+    public Order(String customerUsername, LocalDateTime createdAt, double totalAmount, String status, String paymentMethod) {
         this.customerUsername = customerUsername;
         this.createdAt = createdAt;
         this.totalAmount = totalAmount;
         this.status = status;
+        this.paymentMethod = paymentMethod;
+        this.discountAmount = 0.0;
+        this.finalAmount = totalAmount;
     }
 
     public Long getId() {
@@ -78,6 +92,30 @@ public class Order {
         this.status = status;
     }
 
+    public String getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
+    }
+
+    public double getDiscountAmount() {
+        return discountAmount;
+    }
+
+    public void setDiscountAmount(double discountAmount) {
+        this.discountAmount = discountAmount;
+    }
+
+    public double getFinalAmount() {
+        return finalAmount;
+    }
+
+    public void setFinalAmount(double finalAmount) {
+        this.finalAmount = finalAmount;
+    }
+
     public List<OrderItem> getItems() {
         return items;
     }
@@ -87,6 +125,10 @@ public class Order {
         for (OrderItem item : items) {
             item.setOrder(this);
         }
+    }
+
+    public int getItemCount() {
+        return items == null ? 0 : items.size();
     }
 
     public void addItem(OrderItem item) {

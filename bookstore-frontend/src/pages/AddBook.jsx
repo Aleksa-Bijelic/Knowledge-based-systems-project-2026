@@ -3,10 +3,58 @@ import { useNavigate } from 'react-router-dom';
 import { FiBook } from 'react-icons/fi';
 import { request, authHeader } from '../api';
 
+const PREDEFINED_GENRES = [
+  'Mystery',
+  'Thriller and Suspense',
+  'Horror',
+  'Science Fiction',
+  'Fantasy',
+  'High Fantasy',
+  'Urban Fantasy',
+  'Grimdark Fantasy',
+  'Dystopian Fiction',
+  "Romance",
+  "Romantasy",
+  "Historical Fiction",
+  "Contemporary Fiction",
+  "Literary Fiction",
+  "Young Adult",
+  "New Adult",
+  "Xenofiction",
+  "Children’s Fiction",
+  "Graphic Novel",
+  "Manga",
+  "Short Story",
+  "Novella",
+  "Autobiography",
+  "Memoir",
+  "Biography",
+  "Self-Help",
+  "Parenting",
+  "Food and Drink",
+  "Photography",
+  "History",
+  "Business",
+  "Humor",
+  "True Crime",
+  "Religion and Spirituality",
+  "Philosophy",
+  "Health and Fitness",
+  "Science",
+  "Technology",
+  "Crafts and DIY",
+  "Learning and Education",
+  "Essays",
+  "Gardening and Homesteading",
+  "Music",
+  "Children’s"
+];
+
 function AddBook({ token }) {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
-  const [genre, setGenre] = useState('');
+  const [selectedGenres, setSelectedGenres] = useState([]);
+  const [genreInput, setGenreInput] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [price, setPrice] = useState('');
   const [publishedDate, setPublishedDate] = useState('');
@@ -27,7 +75,7 @@ function AddBook({ token }) {
     const book = {
       title,
       author,
-      genre,
+      genre: selectedGenres.join(', '),
       imageUrl: imageUrl || null,
       price: parseFloat(price),
       publishedDate: publishedDate || null,
@@ -46,7 +94,8 @@ function AddBook({ token }) {
       setMessage('Book added successfully.');
       setTitle('');
       setAuthor('');
-      setGenre('');
+      setSelectedGenres([]);
+      setGenreInput('');
       setImageUrl('');
       setPrice('');
       setPublishedDate('');
@@ -70,8 +119,58 @@ function AddBook({ token }) {
           <input value={author} onChange={(e) => setAuthor(e.target.value)} required />
         </div>
         <div className="form-row">
-          <label>Genre</label>
-          <input value={genre} onChange={(e) => setGenre(e.target.value)} required />
+          <label>Genre tags</label>
+          <div className="genre-input-row">
+            <input
+              list="genre-options"
+              value={genreInput}
+              onChange={(e) => setGenreInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const normalized = genreInput.trim();
+                  if (normalized && !selectedGenres.includes(normalized)) {
+                    setSelectedGenres([...selectedGenres, normalized]);
+                    setGenreInput('');
+                  }
+                }
+              }}
+              placeholder="Type a genre or select one"
+            />
+            <button
+              type="button"
+              className="btn btn-secondary small"
+              onClick={() => {
+                const normalized = genreInput.trim();
+                if (normalized && !selectedGenres.includes(normalized)) {
+                  setSelectedGenres([...selectedGenres, normalized]);
+                  setGenreInput('');
+                }
+              }}
+            >
+              Add
+            </button>
+          </div>
+          <datalist id="genre-options">
+            {PREDEFINED_GENRES.map((genreOption) => (
+              <option key={genreOption} value={genreOption} />
+            ))}
+          </datalist>
+          <div className="book-tags">
+            {selectedGenres.map((tag) => (
+              <span key={tag} className="book-tag">
+                {tag}
+                <button
+                  type="button"
+                  className="tag-remove"
+                  onClick={() => setSelectedGenres(selectedGenres.filter((g) => g !== tag))}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+          <input type="hidden" value={selectedGenres.join(', ')} />
         </div>
         <div className="form-row">
           <label>Cover Image URL</label>
