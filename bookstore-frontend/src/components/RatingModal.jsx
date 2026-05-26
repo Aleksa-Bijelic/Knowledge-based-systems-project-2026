@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { request, authHeader } from '../api';
 import '../styles/rating-modal.css';
 
+const DEFAULT_IMAGE_URL = 'https://www.klett-cotta.de/assets/default-image.jpg';
+
 function RatingModal({ isOpen, book, username, token, onClose, onSuccess }) {
   const [score, setScore] = useState(5);
   const [hoverScore, setHoverScore] = useState(0);
@@ -83,10 +85,10 @@ function RatingModal({ isOpen, book, username, token, onClose, onSuccess }) {
 
         <div className="modal-book-preview">
           <img
-            src={book.imageUrl || 'https://via.placeholder.com/80x120?text=No+Cover'}
+            src={book.imageUrl || DEFAULT_IMAGE_URL}
             alt={book.title}
             className="modal-book-image"
-            onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/80x120?text=No+Cover'; }}
+            onError={(e) => { e.currentTarget.src = DEFAULT_IMAGE_URL; }}
           />
           <div className="modal-book-info">
             <p className="preview-title">{book.title}</p>

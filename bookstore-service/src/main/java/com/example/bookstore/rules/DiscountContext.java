@@ -9,7 +9,8 @@ import java.util.Map;
 public class DiscountContext {
 
     private final Order order;
-    private final Map<OrderItem, Double> itemDiscounts = new HashMap<>();
+    private Map<OrderItem, Double> itemDiscounts = new HashMap<>();
+    private double itemDiscountTotal;
     private double orderDiscountTotal;
     private double chosenDiscount;
     private String selectedDiscountType;
@@ -22,15 +23,24 @@ public class DiscountContext {
         return order;
     }
 
-    public void addItemDiscount(OrderItem item, double discount) {
-        if (item == null || discount <= 0) {
-            return;
-        }
-        itemDiscounts.compute(item, (key, current) -> current == null ? discount : Math.max(current, discount));
+    public Map<OrderItem, Double> getItemDiscounts() {
+        return itemDiscounts;
+    }
+
+    public void setItemDiscounts(Map<OrderItem, Double> itemDiscounts) {
+        this.itemDiscounts = itemDiscounts;
+    }
+
+    public double getItemDiscount(OrderItem item) {
+        return itemDiscounts.getOrDefault(item, 0.0);
     }
 
     public double getItemDiscountTotal() {
-        return itemDiscounts.values().stream().mapToDouble(Double::doubleValue).sum();
+        return itemDiscountTotal;
+    }
+
+    public void setItemDiscountTotal(double itemDiscountTotal) {
+        this.itemDiscountTotal = itemDiscountTotal;
     }
 
     public double getOrderDiscountTotal() {
@@ -39,14 +49,6 @@ public class DiscountContext {
 
     public void setOrderDiscountTotal(double orderDiscountTotal) {
         this.orderDiscountTotal = Math.max(this.orderDiscountTotal, orderDiscountTotal);
-    }
-
-    public double getItemDiscount(OrderItem item) {
-        return itemDiscounts.getOrDefault(item, 0.0);
-    }
-
-    public Map<OrderItem, Double> getItemDiscounts() {
-        return itemDiscounts;
     }
 
     public double getChosenDiscount() {

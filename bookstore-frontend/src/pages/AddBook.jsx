@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { FiBook } from 'react-icons/fi';
 import { request, authHeader } from '../api';
 
+const DEFAULT_IMAGE_URL = 'https://www.klett-cotta.de/assets/default-image.jpg';
+
 const PREDEFINED_GENRES = [
   'Mystery',
   'Thriller and Suspense',
@@ -76,7 +78,7 @@ function AddBook({ token }) {
       title,
       author,
       genre: selectedGenres.join(', '),
-      imageUrl: imageUrl || null,
+      imageUrl: imageUrl.trim() || DEFAULT_IMAGE_URL,
       price: parseFloat(price),
       publishedDate: publishedDate || null,
       addedAt: new Date().toISOString().substring(0, 10)

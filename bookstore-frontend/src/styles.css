@@ -325,21 +325,149 @@ button:disabled,
   margin: 0;
 }
 
+.books-page {
+  display: grid;
+  gap: 22px;
+}
+
+.recommendations-card h3,
+.books-card h3 {
+  margin: 8px 0 10px;
+  font-size: 1.9rem;
+  letter-spacing: -0.03em;
+}
+
+.section-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(124, 135, 84, 0.12);
+  color: var(--primary-dark);
+  font-size: 0.79rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.recommendations-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.section-chip {
+  align-self: flex-start;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(124, 135, 84, 0.12);
+  color: var(--primary-dark);
+  font-size: 0.84rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.book-card-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+}
+
+.book-tag-highlight {
+  background: rgba(124, 135, 84, 0.18);
+  color: var(--primary-dark);
+  font-weight: 800;
+}
+
+.book-card-recommended {
+  border-color: rgba(124, 135, 84, 0.34);
+  box-shadow: 0 16px 34px rgba(124, 135, 84, 0.12);
+}
+
+.recommendation-books-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+/* Search Section */
+.search-section {
+  margin-bottom: 20px;
+}
+
+.search-bar-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-bar {
+  width: 100%;
+  padding: 12px 18px;
+  padding-right: 40px;
+  font-size: 1rem;
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  transition: all 220ms ease;
+  box-shadow: 0 4px 12px rgba(87, 79, 43, 0.06);
+}
+
+.search-bar::placeholder {
+  color: var(--text-muted);
+}
+
+.search-bar:focus {
+  outline: none;
+  border-color: var(--primary-dark);
+  background: var(--bg-surface);
+  box-shadow: 0 8px 20px rgba(109, 120, 68, 0.15);
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 14px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 180ms ease;
+}
+
+.search-clear-btn:hover {
+  color: var(--text-primary);
+}
+
 .book-filters {
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
   margin-bottom: 20px;
-  padding: 14px;
+  padding: 16px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(124, 135, 84, 0.15);
+  box-shadow: 0 6px 16px rgba(87, 79, 43, 0.04);
 }
 
 .filter-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(150px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap: 14px;
 }
 
 .filter-row {
@@ -358,19 +486,20 @@ button:disabled,
 .filter-row select,
 .filter-row input {
   width: 100%;
-  padding: 9px 10px;
+  padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.35);
+  border: 1px solid rgba(124, 135, 84, 0.3);
   background: #fff;
   font-size: 0.94rem;
-  transition: border-color 180ms ease, box-shadow 180ms ease;
+  transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
 }
 
 .filter-row select:focus,
 .filter-row input:focus {
   outline: none;
   border-color: var(--primary-dark);
-  box-shadow: 0 0 0 3px rgba(109, 120, 68, 0.12);
+  box-shadow: 0 0 0 4px rgba(109, 120, 68, 0.12);
+  background: rgba(255, 255, 255, 0.99);
 }
 
 .price-range-row .price-inputs {

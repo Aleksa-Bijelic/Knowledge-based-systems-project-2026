@@ -2,6 +2,8 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { request, authHeader } from '../api';
 import { useState, useEffect } from 'react';
 
+const DEFAULT_IMAGE_URL = 'https://www.klett-cotta.de/assets/default-image.jpg';
+
 function Cart({ cart, onUpdateQuantity, onRemoveFromCart, onClearCart, token, username }) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -123,7 +125,7 @@ function Cart({ cart, onUpdateQuantity, onRemoveFromCart, onClearCart, token, us
           <div key={item.book.id} className="cart-item">
             <div className="cart-item-image">
               <img
-                src={item.book.imageUrl || 'https://via.placeholder.com/80x120?text=No+Cover'}
+                src={item.book.imageUrl || DEFAULT_IMAGE_URL}
                 alt={item.book.title}
               />
             </div>

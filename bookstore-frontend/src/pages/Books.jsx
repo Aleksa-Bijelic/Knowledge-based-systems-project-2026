@@ -3,21 +3,32 @@ import { useNavigate } from 'react-router-dom';
 import { request, authHeader } from '../api';
 import RatingModal from '../components/RatingModal';
 
+const DEFAULT_IMAGE_URL = 'https://www.klett-cotta.de/assets/default-image.jpg';
+
 function Books({ token, username }) {
   const [books, setBooks] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
   const [error, setError] = useState(null);
+  const [recommendationsError, setRecommendationsError] = useState(null);
   const [selectedBook, setSelectedBook] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [genreFilter, setGenreFilter] = useState('');
   const [minRating, setMinRating] = useState('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
+  const [loadingBooks, setLoadingBooks] = useState(true);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(true);
   const navigate = useNavigate();
+
+  const isAdmin = username === 'admin';
 
   const availableGenres = Array.from(
     new Set(
       books.flatMap((book) => (book.genre ? book.genre.split(',').map((tag) => tag.trim()) : []))
     )
   ).sort();
+
+  const recommendedBookIds = new Set(recommendations.map((book) => book.id));
 
   const filteredBooks = books.filter((book) => {
     const bookGenres = book.genre ? book.genre.split(',').map((tag) => tag.trim()) : [];
@@ -27,10 +38,18 @@ function Books({ token, username }) {
     const matchesRating = !minRating || rating >= Number(minRating);
     const matchesMinPrice = !minPrice || price >= Number(minPrice);
     const matchesMaxPrice = !maxPrice || price <= Number(maxPrice);
-    return matchesGenre && matchesRating && matchesMinPrice && matchesMaxPrice;
+    
+    // Search term matching for title and author
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = !searchTerm || 
+      book.title.toLowerCase().includes(searchLower) ||
+      book.author.toLowerCase().includes(searchLower);
+    
+    return matchesGenre && matchesRating && matchesMinPrice && matchesMaxPrice && matchesSearch;
   });
 
   function resetFilters() {
+    setSearchTerm('');
     setGenreFilter('');
     setMinRating('');
     setMinPrice('');
@@ -39,6 +58,8 @@ function Books({ token, username }) {
 
   async function loadBooks() {
     try {
+      setLoadingBooks(true);
+      setError(null);
       const data = await request('/books', {
         headers: {
           'Content-Type': 'application/json',
@@ -48,11 +69,39 @@ function Books({ token, username }) {
       setBooks(data);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoadingBooks(false);
+    }
+  }
+
+  async function loadRecommendations() {
+    if (username) {
+      setRecommendations([]);
+      setLoadingRecommendations(false);
+      setRecommendationsError(null);
+      return;
+    }
+
+    try {
+      setLoadingRecommendations(true);
+      setRecommendationsError(null);
+      const data = await request('/books/recommendations', {
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeader(token),
+        },
+      });
+      setRecommendations(data);
+    } catch (err) {
+      setRecommendationsError(err.message);
+    } finally {
+      setLoadingRecommendations(false);
     }
   }
 
   useEffect(() => {
     loadBooks();
+    loadRecommendations();
   }, [token]);
 
   function handleOpenRatingModal(book) {
@@ -68,90 +117,172 @@ function Books({ token, username }) {
   }
 
   return (
-    <div className="card books-card">
-      <div className="books-header">
-        <div>
-          <h2>Books</h2>
-          <p className="card-subtitle">Browse the available titles and see what you can order today.</p>
-        </div>
-        {username === 'admin' && (
-          <button className="btn btn-primary" onClick={() => navigate('/admin/add-book')}>
-            Add Book
-          </button>
-        )}
-      </div>
-      {error && <div className="error">{error}</div>}
-      <div className="book-filters">
-        <div className="filter-grid">
-          <div className="filter-row">
-            <label>Genre</label>
-            <select value={genreFilter} onChange={(e) => setGenreFilter(e.target.value)}>
-              <option value="">All</option>
-              {availableGenres.map((genre) => (
-                <option key={genre} value={genre}>{genre}</option>
+    <div className="books-page">
+      {!username && (
+        <section className="card recommendations-card">
+          <div className="section-header">
+            <div>
+              <div className="section-eyebrow">Recommended books</div>
+              <h3>Books you may like</h3>
+              <p className="card-subtitle">A quick selection of books currently recommended for guests.</p>
+            </div>
+          </div>
+
+          {recommendationsError && (
+            <div className="error inline-error">Could not load recommendations: {recommendationsError}</div>
+          )}
+
+          {loadingRecommendations && !recommendationsError && <div className="loading-copy">Loading recommendations...</div>}
+
+          {!loadingRecommendations && !recommendationsError && recommendations.length === 0 && (
+            <p className="empty-state">No recommendations are available right now.</p>
+          )}
+
+          {!loadingRecommendations && !recommendationsError && recommendations.length > 0 && (
+            <div className="book-grid recommendation-books-grid">
+              {recommendations.map((book) => (
+                <div key={book.id} className="book-card compact book-card-recommended">
+                  <div className="book-card-image click-target" onClick={() => navigate(`/books/${book.id}`)}>
+                    <img
+                      src={book.imageUrl || DEFAULT_IMAGE_URL}
+                      alt={book.title}
+                      onError={(e) => { e.currentTarget.src = DEFAULT_IMAGE_URL; }}
+                    />
+                  </div>
+                  <div className="book-card-details">
+                    <div className="book-card-header">
+                      <div>
+                        <h3 className="book-card-title" onClick={() => navigate(`/books/${book.id}`)}>{book.title}</h3>
+                        <span className="book-author">by {book.author}</span>
+                      </div>
+                    </div>
+                    <div className="book-card-metadata">
+                      <span>{Number(book.averageRating || 0).toFixed(1)} ★</span>
+                      <span>{book.ratingCount} ratings</span>
+                    </div>
+                    <div className="price book-card-price">{Number(book.price || 0).toFixed(2)} RSD</div>
+                  </div>
+                </div>
               ))}
-            </select>
-          </div>
-          <div className="filter-row">
-            <label>Rating</label>
-            <select value={minRating} onChange={(e) => setMinRating(e.target.value)}>
-              <option value="">Any</option>
-              <option value="1">1+ ⭐</option>
-              <option value="2">2+ ⭐</option>
-              <option value="3">3+ ⭐</option>
-              <option value="4">4+ ⭐</option>
-              <option value="5">5 ⭐</option>
-            </select>
-          </div>
-          <div className="filter-row price-range-row">
-            <label>Price</label>
-            <div className="price-inputs">
-              <input
-                type="number"
-                min="0"
-                value={minPrice}
-                onChange={(e) => setMinPrice(e.target.value)}
-                placeholder="Min"
-              />
-              <span>–</span>
-              <input
-                type="number"
-                min="0"
-                value={maxPrice}
-                onChange={(e) => setMaxPrice(e.target.value)}
-                placeholder="Max"
-              />
             </div>
-          </div>
-          <div className="filter-actions">
-            <button type="button" className="btn btn-outline small" onClick={resetFilters}>
-              Clear
-            </button>
+          )}
+        </section>
+      )}
+
+      <section className="card books-card">
+        <div className="books-header">
+          <div>
+            <div className="section-eyebrow">Library</div>
+            <h3>Browse the catalog</h3>
+            <p className="card-subtitle">Search across the full collection and narrow it down by genre, rating or price.</p>
           </div>
         </div>
-      </div>
-      <div className="book-grid">
-        {books.length === 0 && <p className="empty-state">No books are available yet.</p>}
-        {books.length > 0 && filteredBooks.length === 0 && (
-          <p className="empty-state">No books match the selected filters.</p>
-        )}
-        {filteredBooks.map((book) => (
-          <div key={book.id} className="book-card compact">
-            <div className="book-card-image click-target" onClick={() => navigate(`/books/${book.id}`)}>
-              <img
-                src={book.imageUrl || 'https://via.placeholder.com/160x240?text=No+Cover'}
-                alt={book.title}
-                onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/160x240?text=No+Cover'; }}
-              />
+
+        <div className="search-section">
+          <div className="search-bar-container">
+            <input
+              type="text"
+              className="search-bar"
+              placeholder="Search by title or author..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <button 
+                className="search-clear-btn"
+                onClick={() => setSearchTerm('')}
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="book-filters">
+          <div className="filter-grid">
+            <div className="filter-row">
+              <label>Genre</label>
+              <select value={genreFilter} onChange={(e) => setGenreFilter(e.target.value)}>
+                <option value="">All</option>
+                {availableGenres.map((genre) => (
+                  <option key={genre} value={genre}>{genre}</option>
+                ))}
+              </select>
             </div>
-            <div className="book-card-details">
-              <h3 className="book-card-title" onClick={() => navigate(`/books/${book.id}`)}>{book.title}</h3>
-              <span className="book-author">by {book.author}</span>
-              <div className="price book-card-price">{book.price.toFixed(2)} RSD</div>
+            <div className="filter-row">
+              <label>Rating</label>
+              <select value={minRating} onChange={(e) => setMinRating(e.target.value)}>
+                <option value="">Any</option>
+                <option value="1">1+ ⭐</option>
+                <option value="2">2+ ⭐</option>
+                <option value="3">3+ ⭐</option>
+                <option value="4">4+ ⭐</option>
+                <option value="5">5 ⭐</option>
+              </select>
+            </div>
+            <div className="filter-row price-range-row">
+              <label>Price</label>
+              <div className="price-inputs">
+                <input
+                  type="number"
+                  min="0"
+                  value={minPrice}
+                  onChange={(e) => setMinPrice(e.target.value)}
+                  placeholder="Min"
+                />
+                <span>–</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(e.target.value)}
+                  placeholder="Max"
+                />
+              </div>
+            </div>
+            <div className="filter-actions">
+              <button type="button" className="btn btn-outline small" onClick={resetFilters}>
+                Clear
+              </button>
             </div>
           </div>
-        ))}
-      </div>
+        </div>
+        {error && <div className="error inline-error">{error}</div>}
+        {loadingBooks && !error && <div className="loading-copy">Loading books...</div>}
+        {!loadingBooks && !error && (
+          <div className="book-grid">
+            {books.length === 0 && <p className="empty-state">No books are available yet.</p>}
+            {books.length > 0 && filteredBooks.length === 0 && (
+              <p className="empty-state">No books match the selected filters.</p>
+            )}
+            {filteredBooks.map((book) => (
+              <div key={book.id} className={`book-card compact ${recommendedBookIds.has(book.id) ? 'book-card-recommended' : ''}`}>
+                <div className="book-card-image click-target" onClick={() => navigate(`/books/${book.id}`)}>
+                  <img
+                    src={book.imageUrl || DEFAULT_IMAGE_URL}
+                    alt={book.title}
+                    onError={(e) => { e.currentTarget.src = DEFAULT_IMAGE_URL; }}
+                  />
+                </div>
+                <div className="book-card-details">
+                  <div className="book-card-header">
+                    <div>
+                      <h3 className="book-card-title" onClick={() => navigate(`/books/${book.id}`)}>{book.title}</h3>
+                      <span className="book-author">by {book.author}</span>
+                    </div>
+                  </div>
+                  <div className="book-card-metadata">
+                    <span>{Number(book.averageRating || 0).toFixed(1)} ★</span>
+                    <span>{book.ratingCount} ratings</span>
+                  </div>
+                  <div className="price book-card-price">{Number(book.price || 0).toFixed(2)} RSD</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
       
       <RatingModal
         isOpen={selectedBook !== null}

@@ -1,26 +1,25 @@
 package rules;
 
+dialect "mvel";
+
 import com.example.bookstore.model.Order;
 import com.example.bookstore.model.OrderItem;
 import com.example.bookstore.rules.DiscountContext;
+import com.example.bookstore.rules.OrderItemDiscount;
 
 rule "Item discount for quantity"
 when
     $item: OrderItem(quantity >= 2)
-    $ctx: DiscountContext()
 then
-    double total = $item.getQuantity() * $item.getUnitPrice();
-    $ctx.addItemDiscount($item, total * 0.10);
+    insert(new OrderItemDiscount($item, $item.getQuantity() * $item.getUnitPrice() * 0.10));
 end
 
 rule "Item discount for expensive item"
 when
     $item: OrderItem()
     eval($item.getQuantity() * $item.getUnitPrice() > 3000)
-    $ctx: DiscountContext()
 then
-    double total = $item.getQuantity() * $item.getUnitPrice();
-    $ctx.addItemDiscount($item, total * 0.05);
+    insert(new OrderItemDiscount($item, $item.getQuantity() * $item.getUnitPrice() * 0.05));
 end
 
 rule "Item discount for educational genre"
@@ -32,39 +31,60 @@ when
         $book.getGenre().toLowerCase().contains("learning and education") &&
         $item.getQuantity() * $item.getUnitPrice() > 2000
     )
-    $ctx: DiscountContext()
 then
-    double total = $item.getQuantity() * $item.getUnitPrice();
-    $ctx.addItemDiscount($item, total * 0.07);
+    insert(new OrderItemDiscount($item, $item.getQuantity() * $item.getUnitPrice() * 0.07));
 end
 
 rule "Order discount for 5 or more items"
 when
-    $order: Order()
-    eval($order.getItemCount() >= 5)
+    $order: Order(itemCount >= 5)
     $ctx: DiscountContext()
 then
-    $ctx.setOrderDiscountTotal($order.getTotalAmount() * 0.15);
+    modify($ctx) {
+        setOrderDiscountTotal($order.getTotalAmount() * 0.15);
+    }
 end
 
 rule "Order discount for 3 or more items"
 when
-    $order: Order()
-    eval($order.getItemCount() >= 3 && $order.getItemCount() < 5)
+    $order: Order(itemCount >= 3, itemCount < 5)
     $ctx: DiscountContext()
 then
-    $ctx.setOrderDiscountTotal($order.getTotalAmount() * 0.10);
+    modify($ctx) {
+        setOrderDiscountTotal($order.getTotalAmount() * 0.10);
+    }
+end
+
+rule "Compute best item discount map"
+when
+    $ctx: DiscountContext()
+    $itemDiscountMap : java.util.Map() from accumulate(
+        OrderItemDiscount($item : item, $discount : discount),
+        init( java.util.Map itemBest = new java.util.HashMap(); ),
+        action(
+            Double current = (Double) itemBest.get($item);
+            if (current == null || $discount > current) {
+                itemBest.put($item, $discount);
+            }
+        ),
+        result(itemBest)
+    )
+then
+    $ctx.setItemDiscounts($itemDiscountMap);
+    double total = 0.0;
+    for (Object value : $itemDiscountMap.values()) {
+        total += ((Double) value).doubleValue();
+    }
+    $ctx.setItemDiscountTotal(total);
+    update($ctx);
 end
 
 rule "Choose best discount"
+no-loop true
 when
-    $ctx: DiscountContext($itemTotal: itemDiscountTotal, $orderTotal: orderDiscountTotal)
+    $ctx: DiscountContext($itemTotal : itemDiscountTotal, $orderTotal : orderDiscountTotal)
 then
-    if ($orderTotal >= $itemTotal) {
-        $ctx.setChosenDiscount($orderTotal);
-        $ctx.setSelectedDiscountType("ORDER_DISCOUNT");
-    } else {
-        $ctx.setChosenDiscount($itemTotal);
-        $ctx.setSelectedDiscountType("ITEM_DISCOUNT");
-    }
+    $ctx.setChosenDiscount($orderTotal >= $itemTotal ? $orderTotal : $itemTotal);
+    $ctx.setSelectedDiscountType($orderTotal >= $itemTotal ? "ORDER_DISCOUNT" : "ITEM_DISCOUNT");
+    update($ctx);
 end

@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { request, authHeader } from '../api';
 import RatingModal from '../components/RatingModal';
 
+const DEFAULT_IMAGE_URL = 'https://www.klett-cotta.de/assets/default-image.jpg';
+
 function BookDetail({ token, username, onAddToCart }) {
   const { bookId } = useParams();
   const [book, setBook] = useState(null);
@@ -120,9 +122,9 @@ function BookDetail({ token, username, onAddToCart }) {
       <div className="book-detail-grid">
         <div className="book-detail-image">
           <img
-            src={book.imageUrl || 'https://via.placeholder.com/240x360?text=No+Cover'}
+            src={book.imageUrl || DEFAULT_IMAGE_URL}
             alt={book.title}
-            onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/240x360?text=No+Cover'; }}
+            onError={(e) => { e.currentTarget.src = DEFAULT_IMAGE_URL; }}
           />
         </div>
 

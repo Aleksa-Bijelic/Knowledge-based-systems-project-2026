@@ -1,0 +1,170 @@
+package rules;
+
+dialect "mvel";
+
+import com.example.bookstore.model.Rating;
+import com.example.bookstore.rules.BookRecommendationFact;
+import java.util.List;
+
+rule "Classify new books by added date" no-loop true
+when
+    $bookFact : BookRecommendationFact(newBook == false, $addedAt : addedAt, $evaluationDate : evaluationDate)
+    eval($addedAt != null && $addedAt.isAfter($evaluationDate.minusMonths(1)))
+then
+    modify($bookFact) {
+        setNewBook(true);
+    }
+end
+
+rule "Classify new books by published date" no-loop true
+when
+    $bookFact : BookRecommendationFact(newBook == false, $publishedDate : publishedDate, $evaluationDate : evaluationDate)
+    eval($publishedDate != null && $publishedDate.isAfter($evaluationDate.minusMonths(6)))
+then
+    modify($bookFact) {
+        setNewBook(true);
+    }
+end
+
+rule "Classify popular books by rating count" no-loop true
+when
+    $bookFact : BookRecommendationFact(popular == false, $bookId : book.id)
+    $count : Number(intValue >= 20) from accumulate(
+        Rating(book.id == $bookId),
+        count(1)
+    )
+then
+    modify($bookFact) {
+        setPopular(true);
+    }
+end
+
+rule "Classify popular books when new and moderately rated" no-loop true
+when
+    $bookFact : BookRecommendationFact(popular == false, newBook == true, $bookId : book.id)
+    $count : Number(intValue >= 10) from accumulate(
+        Rating(book.id == $bookId),
+        count(1)
+    )
+then
+    modify($bookFact) {
+        setPopular(true);
+    }
+end
+
+rule "Classify good rated books" no-loop true
+when
+    $bookFact : BookRecommendationFact(ratingCategory == null, $bookId : book.id)
+    $count : Number(intValue > 0) from accumulate(
+        Rating(book.id == $bookId, $score : score),
+        count(1)
+    )
+    $avg : Number() from accumulate(
+        Rating(book.id == $bookId, $score : score),
+        average($score)
+    )
+    eval($avg.doubleValue() >= 4.0)
+then
+    modify($bookFact) {
+        setRatingCategory("GOOD");
+    }
+end
+
+rule "Classify bad rated books" no-loop true
+when
+    $bookFact : BookRecommendationFact(ratingCategory == null, $bookId : book.id)
+    $count : Number(intValue > 0) from accumulate(
+        Rating(book.id == $bookId, $score : score),
+        count(1)
+    )
+    $avg : Number() from accumulate(
+        Rating(book.id == $bookId, $score : score),
+        average($score)
+    )
+    eval($avg.doubleValue() <= 2.5)
+then
+    modify($bookFact) {
+        setRatingCategory("BAD");
+    }
+end
+
+rule "Classify neutral rated books" no-loop true
+when
+    $bookFact : BookRecommendationFact(ratingCategory == null, $bookId : book.id)
+    $count : Number(intValue > 0) from accumulate(
+        Rating(book.id == $bookId, $score : score),
+        count(1)
+    )
+    $avg : Number() from accumulate(
+        Rating(book.id == $bookId, $score : score),
+        average($score)
+    )
+    eval($avg.doubleValue() > 2.5 && $avg.doubleValue() < 4.0)
+then
+    modify($bookFact) {
+        setRatingCategory("NEUTRAL");
+    }
+end
+
+rule "Classify books with no ratings as neutral" no-loop true
+when
+    $bookFact : BookRecommendationFact(ratingCategory == null, $bookId : book.id)
+    not Rating(book.id == $bookId)
+then
+    modify($bookFact) {
+        setRatingCategory("NEUTRAL");
+    }
+end
+
+rule "Recommend popular books with good or neutral rating" no-loop true
+when
+    $bookFact : BookRecommendationFact(popular == true, recommended == false, excluded == false, ratingCategory == "GOOD" || ratingCategory == "NEUTRAL")
+then
+    modify($bookFact) {
+        setRecommended(true);
+    }
+end
+
+rule "Recommend new books" no-loop true
+when
+    $bookFact : BookRecommendationFact(newBook == true, recommended == false, excluded == false)
+then
+    modify($bookFact) {
+        setRecommended(true);
+    }
+end
+
+rule "Unrecommend bad rated books when more than ten are recommended" no-loop true
+salience 20
+when
+    $count : Number(intValue > 10) from accumulate(
+        BookRecommendationFact(recommended == true),
+        count(1)
+    )
+    $bad : BookRecommendationFact(recommended == true, ratingCategory == "BAD")
+then
+    modify($bad) {
+        setRecommended(false);
+        setExcluded(true);
+    }
+end
+
+rule "Prune lowest random score until at most ten are recommended" no-loop true
+salience 10
+when
+    $count : Number(intValue > 10) from accumulate(
+        BookRecommendationFact(recommended == true),
+        count(1)
+    )
+    not BookRecommendationFact(recommended == true, ratingCategory == "BAD")
+    $min : Number() from accumulate(
+        BookRecommendationFact(recommended == true, $score : randomScore != null),
+        min($score)
+    )
+    $bookFact : BookRecommendationFact(recommended == true, randomScore == $min)
+then
+    modify($bookFact) {
+        setRecommended(false);
+        setExcluded(true);
+    }
+end

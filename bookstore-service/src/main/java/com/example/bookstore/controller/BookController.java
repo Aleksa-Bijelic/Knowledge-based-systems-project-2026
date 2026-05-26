@@ -3,6 +3,7 @@ package com.example.bookstore.controller;
 import com.example.bookstore.model.Book;
 import com.example.bookstore.repository.BookRepository;
 import com.example.bookstore.repository.RatingRepository;
+import com.example.bookstore.rules.BookRecommendationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -17,10 +18,12 @@ public class BookController {
 
     private final BookRepository bookRepository;
     private final RatingRepository ratingRepository;
+    private final BookRecommendationService bookRecommendationService;
 
-    public BookController(BookRepository bookRepository, RatingRepository ratingRepository) {
+    public BookController(BookRepository bookRepository, RatingRepository ratingRepository, BookRecommendationService bookRecommendationService) {
         this.bookRepository = bookRepository;
         this.ratingRepository = ratingRepository;
+        this.bookRecommendationService = bookRecommendationService;
     }
 
     @GetMapping
@@ -30,9 +33,21 @@ public class BookController {
                 .collect(Collectors.toList());
     }
 
+    @GetMapping("/recommendations")
+    public List<BookDto> getRecommendedBooks() {
+        return bookRecommendationService.getRecommendationsForAnonymousUser().stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
+    }
+
+    private static final String DEFAULT_IMAGE_URL = "https://www.klett-cotta.de/assets/default-image.jpg";
+
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Book> createBook(@RequestBody Book book) {
+        if (book.getImageUrl() == null || book.getImageUrl().trim().isEmpty()) {
+            book.setImageUrl(DEFAULT_IMAGE_URL);
+        }
         Book saved = bookRepository.save(book);
         return ResponseEntity.created(URI.create("/api/books/" + saved.getId())).body(saved);
     }
