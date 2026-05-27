@@ -16,10 +16,41 @@ import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+
+    private static final Set<String> ALLOWED_GENRES = Set.of(
+            "Fantasy",
+            "Science Fiction",
+            "Mystery",
+            "Thriller",
+            "Crime",
+            "Romance",
+            "Historical Fiction",
+            "Contemporary Fiction",
+            "Literary Fiction",
+            "Young Adult",
+            "Children’s",
+            "Horror",
+            "Adventure",
+            "Biography",
+            "Memoir",
+            "Self-Help",
+            "Personal Development",
+            "Business",
+            "Psychology",
+            "Philosophy",
+            "Religion & Spirituality",
+            "Health & Wellness",
+            "Travel",
+            "Cooking",
+            "Education",
+            "Science",
+            "History"
+    );
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -44,12 +75,16 @@ public class AuthController {
         if (userRepository.existsByEmail(request.getEmail())) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Email already exists");
         }
+        if (!ALLOWED_GENRES.containsAll(request.getFavoriteGenres())) {
+            return ResponseEntity.badRequest().body("One or more favorite genres are not valid");
+        }
 
         AppUser user = new AppUser();
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole("ROLE_USER");
+        user.setFavoriteGenres(request.getFavoriteGenres());
         user.setCreatedAt(LocalDateTime.now());
         AppUser saved = userRepository.save(user);
 

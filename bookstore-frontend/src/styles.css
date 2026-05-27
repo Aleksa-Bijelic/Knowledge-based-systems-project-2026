@@ -539,32 +539,28 @@ button:disabled,
 
 .book-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 24px;
 }
 
 .book-card {
-  display: grid;
-  grid-template-columns: 160px 1fr;
-  gap: 18px;
-  padding: 22px;
-  min-height: 220px;
-  border-radius: 22px;
-  background: radial-gradient(circle at top left, rgba(255, 255, 255, 0.95), rgba(242, 234, 210, 0.92));
-  border: 1px solid rgba(146, 132, 96, 0.18);
-  box-shadow: 0 14px 32px rgba(87, 79, 43, 0.08);
+  display: flex !important;
+  flex-direction: column !important;
+  grid-template-columns: none !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  background: white !important;
 }
 
 .book-card.compact {
-  grid-template-columns: 120px 1fr;
-  gap: 16px;
-  padding: 18px;
-  min-height: auto;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 0 !important;
+  min-height: 0 !important;
 }
 
 .book-card.compact .book-card-image {
-  min-width: 120px;
-  min-height: 180px;
+  width: 100%;
 }
 
 .book-card.compact .book-card-title {
@@ -599,33 +595,22 @@ button:disabled,
 }
 
 .book-card-image {
-  width: 100%;
-  min-width: 160px;
-  min-height: 220px;
-  border-radius: 20px;
-  overflow: hidden;
-  background: linear-gradient(180deg, #f7f2df 0%, #e7ddba 100%);
-}
-
-.book-card-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  aspect-ratio: 2 / 2.8 !important;
 }
 
 .book-card-details {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 14px;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 12px !important;
+  flex-grow: 1 !important;
+  gap: 4px !important;
 }
 
 .book-card-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  align-items: flex-start;
+  display: block !important;
 }
 
 .book-card-header > div {

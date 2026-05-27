@@ -1,6 +1,6 @@
 ﻿BEGIN;
 
-TRUNCATE order_items, orders, book_ratings, users, books RESTART IDENTITY CASCADE;
+TRUNCATE order_items, orders, book_ratings, user_favorite_genres, users, books RESTART IDENTITY CASCADE;
 
 -- Sample Users
 INSERT INTO users (username, password, email, role, created_at) VALUES
@@ -35,41 +35,61 @@ INSERT INTO users (username, password, email, role, created_at) VALUES
   ('marko', '$2b$12$2MSUGtcOGiZkls4JgdRjqOUP0F0oygfE.W1NkvkV83KCzFWqsPT1C', 'marko@example.com', 'ROLE_USER', '2026-05-08 15:25:00'),
   ('maja', '$2b$12$gEtugaM6LuKl9T6KwaUFG.eQKfZGDw39./IuMbrlKIyFNm.toFG2.', 'maja@example.com', 'ROLE_USER', '2026-05-08 16:35:00');
 
+INSERT INTO user_favorite_genres (user_id, genre) VALUES
+  (2, 'Fantasy'),
+  (2, 'Historical Fiction'),
+  (2, 'Mystery'),
+  (3, 'Science Fiction'),
+  (3, 'Adventure'),
+  (5, 'Romance'),
+  (5, 'Contemporary Fiction'),
+  (6, 'Self-Help'),
+  (6, 'Personal Development'),
+  (8, 'Business'),
+  (8, 'Psychology'),
+  (13, 'Education'),
+  (13, 'Science'),
+  (21, 'Fantasy'),
+  (21, 'Adventure'),
+  (22, 'Literary Fiction'),
+  (26, 'Health & Wellness'),
+  (29, 'History');
+
 -- Sample Books
 INSERT INTO books (title, author, genre, image_url, price, published_date, added_at) VALUES
   ('The Hobbit', 'J.R.R. Tolkien', 'Fantasy', 'https://m.media-amazon.com/images/I/712cDO7d73L._AC_UF1000,1000_QL80_.jpg', 1200, '1937-09-21', '2026-05-15'),
   ('Dune', 'Frank Herbert', 'Science Fiction', 'https://m.media-amazon.com/images/I/81Ua99CURsL._AC_UF1000,1000_QL80_.jpg', 1800, '1965-08-01', '2026-04-12'),
   ('Project Hail Mary', 'Andy Weir', 'Science Fiction', 'https://m.media-amazon.com/images/I/91ENQs2KLAL._AC_UF1000,1000_QL80_.jpg', 1300, '2021-05-04', '2026-03-20'),
-  ('Atomic Habits', 'James Clear', 'Self-Help', 'https://www.knjizare-vulkan.rs/files/watermark/files/images/slike_proizvoda/thumbs_w/369334_w_0_0px.jpg', 1700, '2018-10-16', '2026-05-22'),
-  ('The Silent Patient', 'Alex Michaelides', 'Thriller', 'https://m.media-amazon.com/images/I/61R+Cpm+HxL._AC_UF894,1000_QL80_.jpg', 900, '2019-02-05', '2026-04-18'),
-  ('The Alchemist', 'Paulo Coelho', 'Fiction', 'https://www.knjizare-vulkan.rs/files/watermark/files/images/slike_proizvoda/thumbs_w/385041_w_0_0px.jpg', 1200, '1988-05-01', '2026-03-02'),
-  ('Clean Code', 'Robert C. Martin', 'Programming', 'https://m.media-amazon.com/images/I/71nj3JM-igL._AC_UF1000,1000_QL80_.jpg', 2200, '2008-08-01', '2026-05-10'),
-  ('The Pragmatic Programmer', 'Andrew Hunt', 'Programming', 'https://pragprog.com/titles/tpp20/the-pragmatic-programmer-20th-anniversary-edition/tpp20.jpg', 2400, '1999-10-20', '2026-04-18'),
-  ('The Catcher in the Rye', 'J.D. Salinger', 'Fiction', 'https://m.media-amazon.com/images/I/81TRBjfC5fL._AC_UF1000,1000_QL80_.jpg', 1100, '1951-07-16', '2026-03-09'),
-  ('The Four Agreements', 'Don Miguel Ruiz', 'Self-Help', 'https://i0.wp.com/www.miguelruiz.com/wp-content/uploads/2024/05/BookCoverTheFourAgreements.jpg?fit=558%2C800&quality=89&ssl=1', 1400, '1997-11-01', '2026-05-14'),
+  ('Atomic Habits', 'James Clear', 'Self-Help', 'https://www.knjizare-vulkan.rs/files/watermark/files/images/slike_proizvoda/thumbs_w/369334_w_0_0px.jpg', 1700, '2018-10-16', '2026-04-22'),
+  ('The Silent Patient', 'Alex Michaelides', 'Thriller', 'https://m.media-amazon.com/images/I/61R+Cpm+HxL._AC_UF894,1000_QL80_.jpg', 900, '2019-02-05', '2026-05-18'),
+  ('The Alchemist', 'Paulo Coelho', 'Contemporary Fiction', 'https://www.knjizare-vulkan.rs/files/watermark/files/images/slike_proizvoda/thumbs_w/385041_w_0_0px.jpg', 1200, '1988-05-01', '2026-03-02'),
+  ('Clean Code', 'Robert C. Martin', 'Education', 'https://m.media-amazon.com/images/I/71nj3JM-igL._AC_UF1000,1000_QL80_.jpg', 2200, '2008-08-01', '2026-05-10'),
+  ('The Pragmatic Programmer', 'Andrew Hunt', 'Education', 'https://pragprog.com/titles/tpp20/the-pragmatic-programmer-20th-anniversary-edition/tpp20.jpg', 2400, '1999-10-20', '2026-04-18'),
+  ('The Catcher in the Rye', 'J.D. Salinger', 'Literary Fiction', 'https://m.media-amazon.com/images/I/81TRBjfC5fL._AC_UF1000,1000_QL80_.jpg', 1100, '1951-07-16', '2026-05-09'),
+  ('The Four Agreements', 'Don Miguel Ruiz', 'Self-Help', 'https://i0.wp.com/www.miguelruiz.com/wp-content/uploads/2024/05/BookCoverTheFourAgreements.jpg?fit=558%2C800&quality=89&ssl=1', 1400, '1997-11-01', '2026-03-14'),
   ('The Lean Startup', 'Eric Ries', 'Business', 'https://www.knjizare-vulkan.rs/files/images/slike_proizvoda/374262.jpg.webp', 1600, '2011-09-13', '2026-04-07'),
   ('Children of Time', 'Adrian Tchaikovsky', 'Science Fiction', 'https://delfi.rs/_img/artikli/2020/06/children_of_time_vv.jpg', 1700, '2015-05-07', '2026-03-24'),
   ('Small Things Like These', 'Claire Keegan', 'Literary Fiction', 'https://m.media-amazon.com/images/S/compressed.photo.goodreads.com/books/1663217608i/59733531.jpg', 1000, '2021-10-07', '2026-05-25'),
   ('Sapiens', 'Yuval Noah Harari', 'History', 'https://www.knjizare-vulkan.rs/files/watermark/files/images/slike_proizvoda/thumbs_w/328178_w_0_0px.jpg', 2100, '2011-06-04', '2026-04-15'),
-  ('Nineteen Eighty-Four', 'George Orwell', 'Dystopian', 'https://delfi.rs/_img/artikli/Strana%20knjiga/210918/vv/1712907615-image-2.jpg', 1100, '1949-06-08', '2026-03-01'),
-  ('Educated', 'Tara Westover', 'Learning and Education', 'https://m.media-amazon.com/images/S/compressed.photo.goodreads.com/books/1774287363i/35133922.jpg', 3100, '2018-02-20', '2026-05-21'),
+  ('Nineteen Eighty-Four', 'George Orwell', 'Literary Fiction', 'https://delfi.rs/_img/artikli/Strana%20knjiga/210918/vv/1712907615-image-2.jpg', 1100, '1949-06-08', '2026-05-01'),
+  ('Educated', 'Tara Westover', 'Education', 'https://m.media-amazon.com/images/S/compressed.photo.goodreads.com/books/1774287363i/35133922.jpg', 3100, '2018-02-20', '2026-03-21'),
   ('The Martian', 'Andy Weir', 'Science Fiction', 'https://m.media-amazon.com/images/I/810W+zAp2DL._AC_UF1000,1000_QL80_.jpg', 1300, '2014-02-11', '2026-03-12'),
   ('Norwegian Wood', 'Haruki Murakami', 'Literary Fiction', 'https://www.knjizare-vulkan.rs/files/watermark/files/images/slike_proizvoda/thumbs_w/223815_w_0_0px.jpg', 1250, '1987-09-04', '2026-03-17'),
-  ('Circe', 'Madeline Miller', 'Fantasy', 'https://m.media-amazon.com/images/S/compressed.photo.goodreads.com/books/1565909496i/35959740.jpg', 1450, '2018-04-10', '2026-05-23'),
+  ('Circe', 'Madeline Miller', 'Fantasy', 'https://m.media-amazon.com/images/S/compressed.photo.goodreads.com/books/1565909496i/35959740.jpg', 1450, '2018-04-10', '2026-04-23'),
   ('The Night Circus', 'Erin Morgenstern', 'Fantasy', 'https://www.knjizare-vulkan.rs/files/watermark/files/images/slike_proizvoda/thumbs_w/373845_w_0_0px.jpg', 1300, '2011-09-13', '2026-04-11'),
   ('The Invisible Life of Addie LaRue', 'V.E. Schwab', 'Fantasy', 'https://m.media-amazon.com/images/I/91Ql48Y0mqL._AC_UF1000,1000_QL80_DpWeblab_.jpg', 1500, '2020-10-06', '2026-03-24'),
-  ('The Midnight Library', 'Matt Haig', 'Contemporary', 'https://www.knjizare-vulkan.rs/files/watermark/files/images/slike_proizvoda/thumbs_w/358787_w_0_0px.jpg', 1200, '2020-09-29', '2026-05-25'),
+  ('The Midnight Library', 'Matt Haig', 'Contemporary Fiction', 'https://www.knjizare-vulkan.rs/files/watermark/files/images/slike_proizvoda/thumbs_w/358787_w_0_0px.jpg', 1200, '2020-09-29', '2026-04-25'),
   ('Where the Crawdads Sing', 'Delia Owens', 'Mystery', 'https://upload.wikimedia.org/wikipedia/en/2/23/Where_the_Crawdads_Sing_%28film%29.jpg', 1450, '2018-08-14', '2026-04-08'),
   ('The Song of Achilles', 'Madeline Miller', 'Historical Fiction', 'https://m.media-amazon.com/images/S/compressed.photo.goodreads.com/books/1357177533i/13623848.jpg', 1500, '2011-09-20', '2026-03-20'),
-  ('The Road', 'Cormac McCarthy', 'Post-Apocalyptic', 'https://m.media-amazon.com/images/I/81rfbliaDmL._AC_UF1000,1000_QL80_.jpg', 1100, '2006-09-26', '2026-05-05'),
+  ('The Road', 'Cormac McCarthy', 'Literary Fiction', 'https://m.media-amazon.com/images/I/81rfbliaDmL._AC_UF1000,1000_QL80_.jpg', 1100, '2006-09-26', '2026-05-05'),
   ('The Power of Habit', 'Charles Duhigg', 'Self-Help', 'https://www.knjizare-vulkan.rs/files/watermark/files/images/slike_proizvoda/thumbs_w/374265_w_0_0px.jpg', 1600, '2012-02-28', '2026-04-09'),
   ('A Little Life', 'Hanya Yanagihara', 'Literary Fiction', 'https://delfi.rs/_img/artikli/2021/12/a_little_life_vv.jpg', 1550, '2015-03-10', '2026-03-19'),
-  ('Hyperion', 'Dan Simmons', 'Science Fiction', 'https://upload.wikimedia.org/wikipedia/en/7/73/Hyperion_cover.jpg', 1700, '1989-05-26', '2026-05-16'),
+  ('Hyperion', 'Dan Simmons', 'Science Fiction', 'https://upload.wikimedia.org/wikipedia/en/7/73/Hyperion_cover.jpg', 1700, '1989-05-26', '2026-04-16'),
   ('The Name of the Wind', 'Patrick Rothfuss', 'Fantasy', 'https://m.media-amazon.com/images/S/compressed.photo.goodreads.com/books/1704917687i/186074.jpg', 1650, '2007-03-27', '2026-04-13'),
   ('The Priory of the Orange Tree', 'Samantha Shannon', 'Fantasy', 'https://upload.wikimedia.org/wikipedia/en/8/81/The_Priory_of_the_Orange_Tree.png?utm_source=en.wikipedia.org&utm_campaign=index&utm_content=original', 1700, '2019-02-05', '2026-03-25'),
-  ('The Final Empire', 'Brandon Sanderson', 'Fantasy', 'https://delfi.rs/_img/artikli/2021/08/the_final_empire_mistborn_book_one_vv.jpg', 1550, '2006-07-17', '2026-05-26'),
-  ('Mastering Data Structures', 'Alex Johnson', 'Learning and Education', 'https://m.media-amazon.com/images/I/81o3zA0EhXL._AC_UF1000,1000_QL80_.jpg', 3200, '2026-01-10', '2026-04-25'),
-  ('Practical Machine Learning', 'Daniel Smith', 'Learning and Education', 'https://d2sofvawe08yqg.cloudfront.net/practical-machine-learning-r/s_hero2x?1625412118&1625412118', 1900, '2026-04-15', '2026-03-26');
+  ('The Final Empire', 'Brandon Sanderson', 'Fantasy', 'https://delfi.rs/_img/artikli/2021/08/the_final_empire_mistborn_book_one_vv.jpg', 1550, '2006-07-17', '2026-04-26'),
+  ('Mastering Data Structures', 'Alex Johnson', 'Education', 'https://m.media-amazon.com/images/I/81o3zA0EhXL._AC_UF1000,1000_QL80_.jpg', 3200, '2026-01-10', '2026-04-25'),
+  ('Practical Machine Learning', 'Daniel Smith', 'Education', 'https://d2sofvawe08yqg.cloudfront.net/practical-machine-learning-r/s_hero2x?1625412118&1625412118', 1900, '2026-04-15', '2026-03-26');
 
 -- Sample Ratings
 INSERT INTO book_ratings (book_id, username, score, comment, rated_at) VALUES

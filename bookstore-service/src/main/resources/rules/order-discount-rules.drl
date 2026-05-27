@@ -28,7 +28,7 @@ when
     eval(
         $book != null &&
         $book.getGenre() != null &&
-        $book.getGenre().toLowerCase().contains("learning and education") &&
+        $book.getGenre().toLowerCase().contains("education") &&
         $item.getQuantity() * $item.getUnitPrice() > 2000
     )
 then

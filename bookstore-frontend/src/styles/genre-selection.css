@@ -1,0 +1,43 @@
+.genre-selection {
+  margin-top: 10px;
+}
+
+.genre-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.genre-chip {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 150ms ease;
+  user-select: none;
+}
+
+.genre-chip:hover {
+  background: var(--bg-panel-strong);
+  border-color: var(--text-muted);
+}
+
+.genre-chip.selected {
+  background: var(--primary);
+  border-color: var(--primary-dark);
+  color: white;
+  box-shadow: 0 4px 12px rgba(124, 135, 84, 0.25);
+}
+
+.genre-selection-label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}

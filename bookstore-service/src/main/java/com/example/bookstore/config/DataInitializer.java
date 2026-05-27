@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 
 @Configuration
 public class DataInitializer {
@@ -22,6 +23,7 @@ public class DataInitializer {
                 admin.setEmail("admin@example.com");
                 admin.setPassword(passwordEncoder.encode("admin123"));
                 admin.setRole("ROLE_ADMIN");
+                admin.setFavoriteGenres(new HashSet<>());
                 admin.setCreatedAt(LocalDateTime.now());
                 userRepository.save(admin);
                 System.out.println("Created default admin user: admin / admin123");

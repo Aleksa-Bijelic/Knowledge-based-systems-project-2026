@@ -7,7 +7,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "users")
@@ -32,6 +34,11 @@ public class AppUser implements UserDetails {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_favorite_genres", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "genre", nullable = false)
+    private Set<String> favoriteGenres = new HashSet<>();
+
     public AppUser() {
     }
 
@@ -41,6 +48,14 @@ public class AppUser implements UserDetails {
         this.email = email;
         this.role = role;
         this.createdAt = createdAt;
+    }
+
+    public Set<String> getFavoriteGenres() {
+        return favoriteGenres;
+    }
+
+    public void setFavoriteGenres(Set<String> favoriteGenres) {
+        this.favoriteGenres = favoriteGenres != null ? new HashSet<>(favoriteGenres) : new HashSet<>();
     }
 
     public Long getId() {

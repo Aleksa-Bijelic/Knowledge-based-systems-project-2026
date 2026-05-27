@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { request, authHeader } from '../api';
 import RatingModal from '../components/RatingModal';
+import '../styles/book-card.css';
 
 const DEFAULT_IMAGE_URL = 'https://www.klett-cotta.de/assets/default-image.jpg';
 
@@ -141,8 +142,14 @@ function Books({ token, username }) {
           {!loadingRecommendations && !recommendationsError && recommendations.length > 0 && (
             <div className="book-grid recommendation-books-grid">
               {recommendations.map((book) => (
-                <div key={book.id} className="book-card compact book-card-recommended">
-                  <div className="book-card-image click-target" onClick={() => navigate(`/books/${book.id}`)}>
+                <div key={book.id} className="book-card book-card-recommended">
+                  <div className="book-card-image" onClick={() => navigate(`/books/${book.id}`)}>
+                    <div className="recommendation-badge">Recommended</div>
+                    <div className="genre-badge-container">
+                      {(book.genre || '').split(',').map((g, i) => (
+                        <span key={i} className="genre-tag">{g.trim()}</span>
+                      ))}
+                    </div>
                     <img
                       src={book.imageUrl || DEFAULT_IMAGE_URL}
                       alt={book.title}
@@ -150,17 +157,15 @@ function Books({ token, username }) {
                     />
                   </div>
                   <div className="book-card-details">
-                    <div className="book-card-header">
-                      <div>
-                        <h3 className="book-card-title" onClick={() => navigate(`/books/${book.id}`)}>{book.title}</h3>
-                        <span className="book-author">by {book.author}</span>
+                    <h3 className="book-card-title" onClick={() => navigate(`/books/${book.id}`)}>{book.title}</h3>
+                    <span className="book-author">{book.author}</span>
+                    <div className="book-card-footer">
+                      <div className="book-card-metadata">
+                        <span className="rating-badge">{Number(book.averageRating || 0).toFixed(1)} ★</span>
+                        <span>({book.ratingCount})</span>
                       </div>
+                      <div className="book-card-price">{Number(book.price || 0).toFixed(0)} RSD</div>
                     </div>
-                    <div className="book-card-metadata">
-                      <span>{Number(book.averageRating || 0).toFixed(1)} ★</span>
-                      <span>{book.ratingCount} ratings</span>
-                    </div>
-                    <div className="price book-card-price">{Number(book.price || 0).toFixed(2)} RSD</div>
                   </div>
                 </div>
               ))}
@@ -257,8 +262,14 @@ function Books({ token, username }) {
               <p className="empty-state">No books match the selected filters.</p>
             )}
             {filteredBooks.map((book) => (
-              <div key={book.id} className={`book-card compact ${recommendedBookIds.has(book.id) ? 'book-card-recommended' : ''}`}>
-                <div className="book-card-image click-target" onClick={() => navigate(`/books/${book.id}`)}>
+              <div key={book.id} className={`book-card ${recommendedBookIds.has(book.id) ? 'book-card-recommended' : ''}`}>
+                <div className="book-card-image" onClick={() => navigate(`/books/${book.id}`)}>
+                  {recommendedBookIds.has(book.id) && <div className="recommendation-badge">Recommended</div>}
+                  <div className="genre-badge-container">
+                    {(book.genre || '').split(',').map((g, i) => (
+                      <span key={i} className="genre-tag">{g.trim()}</span>
+                    ))}
+                  </div>
                   <img
                     src={book.imageUrl || DEFAULT_IMAGE_URL}
                     alt={book.title}
@@ -266,17 +277,15 @@ function Books({ token, username }) {
                   />
                 </div>
                 <div className="book-card-details">
-                  <div className="book-card-header">
-                    <div>
-                      <h3 className="book-card-title" onClick={() => navigate(`/books/${book.id}`)}>{book.title}</h3>
-                      <span className="book-author">by {book.author}</span>
+                  <h3 className="book-card-title" onClick={() => navigate(`/books/${book.id}`)}>{book.title}</h3>
+                  <span className="book-author">{book.author}</span>
+                  <div className="book-card-footer">
+                    <div className="book-card-metadata">
+                      <span className="rating-badge">{Number(book.averageRating || 0).toFixed(1)} ★</span>
+                      <span>({book.ratingCount})</span>
                     </div>
+                    <div className="book-card-price">{Number(book.price || 0).toFixed(0)} RSD</div>
                   </div>
-                  <div className="book-card-metadata">
-                    <span>{Number(book.averageRating || 0).toFixed(1)} ★</span>
-                    <span>{book.ratingCount} ratings</span>
-                  </div>
-                  <div className="price book-card-price">{Number(book.price || 0).toFixed(2)} RSD</div>
                 </div>
               </div>
             ))}
