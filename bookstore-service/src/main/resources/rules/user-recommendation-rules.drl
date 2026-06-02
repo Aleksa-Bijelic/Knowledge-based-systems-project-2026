@@ -1,8 +1,14 @@
 package rules;
 
-dice "mvel";
+dialect "mvel";
 
+import com.example.bookstore.model.Book;
 import com.example.bookstore.model.Rating;
+import com.example.bookstore.rules.AuthorStats;
+import com.example.bookstore.rules.BookRatingCount;
+import com.example.bookstore.rules.BookScore;
+import com.example.bookstore.rules.GenreMatch;
+import com.example.bookstore.rules.QualifiedAuthor;
 import com.example.bookstore.rules.UserRecommendationFact;
 
 rule "Classify new user by rating count" no-loop true
@@ -24,5 +30,112 @@ when
 then
     modify($userFact) {
         setUseUnauthenticatedRecommendation(true);
+    }
+end
+
+rule "Count ratings per book" salience 50 no-loop true
+when
+    $userFact : UserRecommendationFact(newUser == true, genreSelectionMade == true)
+    $book : Book($bookId : id)
+    not BookRatingCount(bookId == $bookId)
+    $count : Number() from accumulate(
+        Rating(book.id == $bookId),
+        count(1)
+    )
+then
+    insert(new BookRatingCount($bookId, $count.longValue()));
+end
+
+rule "Calculate author statistics" salience 40 no-loop true
+when
+    $userFact : UserRecommendationFact(newUser == true, genreSelectionMade == true)
+    $book : Book($author : author)
+    not AuthorStats(author == $author)
+    $totalBooks : Number(intValue >= 1) from accumulate(
+        Book(author == $author),
+        count(1)
+    )
+    $totalRatings : Number() from accumulate(
+        Book(author == $author, $id : id) and BookRatingCount(bookId == $id, $rc : count),
+        sum($rc)
+    )
+then
+    insert(new AuthorStats($author, $totalBooks.longValue(), $totalRatings.longValue()));
+end
+
+rule "Compute author genre membership" salience 40 no-loop true
+when
+    $userFact : UserRecommendationFact(newUser == true, genreSelectionMade == true, $genres : favoriteGenres)
+    $genre : String() from $genres
+    $book : Book($author : author)
+    not GenreMatch(author == $author, genre == $genre)
+    $inGenre : Number(intValue > 0) from accumulate(
+        Book(author == $author, genre == $genre),
+        count(1)
+    )
+    $total : Number(intValue > 0) from accumulate(
+        Book(author == $author),
+        count(1)
+    )
+    eval($inGenre.doubleValue() / $total.doubleValue() >= 0.3)
+then
+    insert(new GenreMatch($author, $genre));
+end
+
+rule "Identify qualified authors" salience 30 no-loop true
+when
+    $userFact : UserRecommendationFact(newUser == true, genreSelectionMade == true, $genres : favoriteGenres)
+    $genre : String() from $genres
+    GenreMatch(author == $author, genre == $genre)
+    $authorStats : AuthorStats(author == $author, totalRatingCount > 0)
+    not QualifiedAuthor(author == $author)
+then
+    insert(new QualifiedAuthor($author, $authorStats.getTotalRatingCount()));
+end
+
+rule "Select top qualified author" salience 20 no-loop true
+when
+    $userFact : UserRecommendationFact(newUser == true, genreSelectionMade == true)
+    $selectedCount : Number(intValue < 4) from accumulate(
+        QualifiedAuthor(selected == true),
+        count(1)
+    )
+    $qa : QualifiedAuthor(selected == false)
+    not QualifiedAuthor(selected == false, totalRatingCount > $qa.totalRatingCount)
+then
+    modify($qa) {
+        setSelected(true);
+    }
+end
+
+rule "Calculate book scores for top authors" salience 10 no-loop true
+when
+    $qa : QualifiedAuthor(selected == true, $author : author)
+    $book : Book(author == $author)
+    not BookScore(bookId == $book.id)
+    $ratingCount : Number(intValue > 0) from accumulate(
+        Rating(book.id == $book.id, $score : score),
+        count(1)
+    )
+    $avgScore : Number() from accumulate(
+        Rating(book.id == $book.id, $score : score),
+        average($score)
+    )
+then
+    insert(new BookScore($book.getId(), $avgScore.doubleValue()));
+end
+
+rule "Select top book" salience 0 no-loop true
+when
+    $userFact : UserRecommendationFact(newUser == true, genreSelectionMade == true)
+    $selectedCount : Number(intValue < 10) from accumulate(
+        BookScore(selected == true),
+        count(1)
+    )
+    $bs : BookScore(selected == false)
+    not BookScore(selected == false, avgScore > $bs.avgScore)
+then
+    modify($bs) {
+        setSelected(true);
     }
 end
