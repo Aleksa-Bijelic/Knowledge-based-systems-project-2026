@@ -3,13 +3,147 @@ package rules;
 dialect "mvel";
 
 import com.example.bookstore.model.Book;
+import com.example.bookstore.model.Order;
+import com.example.bookstore.model.OrderItem;
 import com.example.bookstore.model.Rating;
 import com.example.bookstore.rules.AuthorStats;
 import com.example.bookstore.rules.BookRatingCount;
 import com.example.bookstore.rules.BookScore;
+import com.example.bookstore.rules.BookPairSimilarity;
+import com.example.bookstore.rules.ExistingUserBookScore;
 import com.example.bookstore.rules.GenreMatch;
+import com.example.bookstore.rules.LikedBookByUser;
 import com.example.bookstore.rules.QualifiedAuthor;
+import com.example.bookstore.rules.SimilarUser;
+import com.example.bookstore.rules.UserPreferredAuthor;
+import com.example.bookstore.rules.UserPreferredGenre;
 import com.example.bookstore.rules.UserRecommendationFact;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+function double pearson(List allRatings, String userA, String userB) {
+    Map<Long, Integer> ratingsA = new HashMap<>();
+    Map<Long, Integer> ratingsB = new HashMap<>();
+
+    for (Object obj : allRatings) {
+        Rating r = (Rating) obj;
+        Long bookId = r.getBook().getId();
+        if (r.getUsername().equals(userA)) {
+            ratingsA.put(bookId, r.getScore());
+        } else if (r.getUsername().equals(userB)) {
+            ratingsB.put(bookId, r.getScore());
+        }
+    }
+
+    List<Long> commonBooks = new ArrayList<>();
+    for (Long bookId : ratingsA.keySet()) {
+        if (ratingsB.containsKey(bookId)) {
+            commonBooks.add(bookId);
+        }
+    }
+
+    if (commonBooks.size() < 2) return 0;
+
+    double meanA = 0, meanB = 0;
+    for (Long bookId : commonBooks) {
+        meanA += ratingsA.get(bookId);
+        meanB += ratingsB.get(bookId);
+    }
+    meanA /= commonBooks.size();
+    meanB /= commonBooks.size();
+
+    double num = 0, sumSqA = 0, sumSqB = 0;
+    for (Long bookId : commonBooks) {
+        double diffA = ratingsA.get(bookId) - meanA;
+        double diffB = ratingsB.get(bookId) - meanB;
+        num += diffA * diffB;
+        sumSqA += diffA * diffA;
+        sumSqB += diffB * diffB;
+    }
+
+    double denom = Math.sqrt(sumSqA) * Math.sqrt(sumSqB);
+    if (denom == 0) return 0;
+    return num / denom;
+}
+
+function boolean areBooksSimilar(List allRatings, Long bookId1, Long bookId2) {
+    Map<String, Integer> scores1 = new HashMap<>();
+    Map<String, Integer> scores2 = new HashMap<>();
+
+    for (Object obj : allRatings) {
+        Rating r = (Rating) obj;
+        Long bid = r.getBook().getId();
+        if (bid.equals(bookId1)) {
+            scores1.put(r.getUsername(), r.getScore());
+        } else if (bid.equals(bookId2)) {
+            scores2.put(r.getUsername(), r.getScore());
+        }
+    }
+
+    int similar = 0, total = 0;
+    for (Map.Entry<String, Integer> entry : scores1.entrySet()) {
+        Integer s2 = scores2.get(entry.getKey());
+        if (s2 != null) {
+            total++;
+            if (Math.abs(entry.getValue() - s2) <= 1) similar++;
+        }
+    }
+
+    return total > 0 && (double) similar / total >= 0.7;
+}
+
+function Set<String> getPreferredAuthors(List allOrders, String username) {
+    Map<String, Integer> authorCount = new HashMap<>();
+    java.time.LocalDateTime sixMonthsAgo = java.time.LocalDateTime.now().minusMonths(6);
+
+    for (Object obj : allOrders) {
+        Order order = (Order) obj;
+        if (!order.getCustomerUsername().equals(username)) continue;
+        if (order.getCreatedAt().isBefore(sixMonthsAgo)) continue;
+
+        for (OrderItem item : order.getItems()) {
+            if (item.getBook() == null) continue;
+            authorCount.merge(item.getBook().getAuthor(), item.getQuantity(), Integer::sum);
+        }
+    }
+
+    Set<String> result = new HashSet<>();
+    for (Map.Entry<String, Integer> entry : authorCount.entrySet()) {
+        if (entry.getValue() >= 3) result.add(entry.getKey());
+    }
+    return result;
+}
+
+function Set<String> getPreferredGenres(List allOrders, String username) {
+    Map<String, Integer> genreCount = new HashMap<>();
+    int total = 0;
+    java.time.LocalDateTime sixMonthsAgo = java.time.LocalDateTime.now().minusMonths(6);
+
+    for (Object obj : allOrders) {
+        Order order = (Order) obj;
+        if (!order.getCustomerUsername().equals(username)) continue;
+        if (order.getCreatedAt().isBefore(sixMonthsAgo)) continue;
+
+        for (OrderItem item : order.getItems()) {
+            if (item.getBook() == null) continue;
+            genreCount.merge(item.getBook().getGenre(), item.getQuantity(), Integer::sum);
+            total += item.getQuantity();
+        }
+    }
+
+    Set<String> result = new HashSet<>();
+    if (total > 0) {
+        for (Map.Entry<String, Integer> entry : genreCount.entrySet()) {
+            if ((double) entry.getValue() / total >= 0.3) result.add(entry.getKey());
+        }
+    }
+    return result;
+}
 
 rule "Classify new user by rating count" no-loop true
 when
@@ -134,6 +268,142 @@ when
     )
     $bs : BookScore(selected == false)
     not BookScore(selected == false, avgScore > $bs.avgScore)
+then
+    modify($bs) {
+        setSelected(true);
+    }
+end
+
+rule "Prepare existing user recommendation data" salience 100 no-loop true
+when
+    $userFact : UserRecommendationFact(newUser == false, $username : username)
+    $allRatings : List() from collect(Rating())
+    $allOrders : List() from collect(Order())
+    $allBooks : List() from collect(Book())
+then
+    Set<String> usernames = new HashSet<>();
+    for (Object obj : $allRatings) {
+        usernames.add(((Rating) obj).getUsername());
+    }
+    usernames.remove($username);
+    for (String otherUser : usernames) {
+        if (pearson($allRatings, $username, otherUser) >= 0.5) {
+            insert(new SimilarUser($username, otherUser, 1.0));
+        }
+    }
+
+    Set<Long> bookIds = new HashSet<>();
+    for (Object obj : $allRatings) {
+        bookIds.add(((Rating) obj).getBook().getId());
+    }
+    List<Long> bookIdList = new ArrayList<>(bookIds);
+    for (int i = 0; i < bookIdList.size(); i++) {
+        for (int j = i + 1; j < bookIdList.size(); j++) {
+            if (areBooksSimilar($allRatings, bookIdList.get(i), bookIdList.get(j))) {
+                insert(new BookPairSimilarity(bookIdList.get(i), bookIdList.get(j)));
+            }
+        }
+    }
+
+    Set<String> prefAuthors = getPreferredAuthors($allOrders, $username);
+    for (String author : prefAuthors) {
+        insert(new UserPreferredAuthor($username, author));
+    }
+    Set<String> prefGenres = getPreferredGenres($allOrders, $username);
+    for (String genre : prefGenres) {
+        insert(new UserPreferredGenre($username, genre));
+    }
+
+    for (Object obj : $allOrders) {
+        Order order = (Order) obj;
+        if (order.getCustomerUsername().equals($username)) {
+            for (OrderItem item : order.getItems()) {
+                if (item.getBook() != null) {
+                    insert(new LikedBookByUser($username, item.getBook().getId()));
+                }
+            }
+        }
+    }
+
+    for (Object obj : $allRatings) {
+        Rating r = (Rating) obj;
+        if (r.getScore() >= 4) {
+            insert(new LikedBookByUser(r.getUsername(), r.getBook().getId()));
+        }
+    }
+
+    for (Object obj : $allBooks) {
+        Book book = (Book) obj;
+        insert(new ExistingUserBookScore(book.getId(), book.getTitle(), book.getPublishedDate()));
+    }
+end
+
+rule "Existing user - criterion 1 - similar users liked this book" no-loop true
+when
+    $userFact : UserRecommendationFact(newUser == false, $username : username)
+    $book : Book($bookId : id)
+    $score : ExistingUserBookScore(bookId == $bookId, criterion1Met == false)
+    exists (SimilarUser(username == $username, $similarUsername : similarUsername) and
+            LikedBookByUser(username == $similarUsername, bookId == $bookId))
+then
+    modify($score) {
+        setScore(getScore() + 1),
+        setCriterion1Met(true)
+    }
+end
+
+rule "Existing user - criterion 2a - book similar to liked book" no-loop true
+when
+    $userFact : UserRecommendationFact(newUser == false, $username : username)
+    $book : Book($bookId : id)
+    $score : ExistingUserBookScore(bookId == $bookId, criterion2Met == false)
+    exists (LikedBookByUser(username == $username, $likedBookId : bookId) and
+            BookPairSimilarity(bookId1 == $likedBookId, bookId2 == $bookId))
+then
+    modify($score) {
+        setScore(getScore() + 1),
+        setCriterion2Met(true)
+    }
+end
+
+rule "Existing user - criterion 2b - book similar to liked book" no-loop true
+when
+    $userFact : UserRecommendationFact(newUser == false, $username : username)
+    $book : Book($bookId : id)
+    $score : ExistingUserBookScore(bookId == $bookId, criterion2Met == false)
+    exists (LikedBookByUser(username == $username, $likedBookId : bookId) and
+            BookPairSimilarity(bookId1 == $bookId, bookId2 == $likedBookId))
+then
+    modify($score) {
+        setScore(getScore() + 1),
+        setCriterion2Met(true)
+    }
+end
+
+rule "Existing user - criterion 3 - matches user preferences" no-loop true
+when
+    $userFact : UserRecommendationFact(newUser == false, $username : username)
+    $book : Book($bookId : id, $author : author, $genre : genre)
+    $score : ExistingUserBookScore(bookId == $bookId, criterion3Met == false)
+    (exists UserPreferredAuthor(username == $username, author == $author) or
+     exists UserPreferredGenre(username == $username, genre == $genre))
+then
+    modify($score) {
+        setScore(getScore() + 1),
+        setCriterion3Met(true)
+    }
+end
+
+rule "Existing user - select top 20 books by score" salience -100 no-loop true
+when
+    $userFact : UserRecommendationFact(newUser == false)
+    $selectedCount : Number(intValue < 20) from accumulate(
+        ExistingUserBookScore(selected == true),
+        count(1)
+    )
+    $bs : ExistingUserBookScore(selected == false)
+    not ExistingUserBookScore(selected == false, score > $bs.score)
+    not ExistingUserBookScore(selected == false, score == $bs.score, publishedDate > $bs.publishedDate)
 then
     modify($bs) {
         setSelected(true);
