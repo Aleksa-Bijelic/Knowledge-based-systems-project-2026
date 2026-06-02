@@ -1,0 +1,28 @@
+package rules;
+
+dice "mvel";
+
+import com.example.bookstore.model.Rating;
+import com.example.bookstore.rules.UserRecommendationFact;
+
+rule "Classify new user by rating count" no-loop true
+when
+    $userFact : UserRecommendationFact(newUser == false, $username : username)
+    $count : Number(intValue < 10) from accumulate(
+        Rating(username == $username),
+        count(1)
+    )
+then
+    modify($userFact) {
+        setNewUser(true);
+    }
+end
+
+rule "Set unauthenticated recommendation for new user without genre selection"
+when
+    $userFact : UserRecommendationFact(newUser == true, genreSelectionMade == false)
+then
+    modify($userFact) {
+        setUseUnauthenticatedRecommendation(true);
+    }
+end

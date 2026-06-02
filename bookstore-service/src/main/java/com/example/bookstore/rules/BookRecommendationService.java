@@ -2,7 +2,6 @@ package com.example.bookstore.rules;
 
 import com.example.bookstore.model.Book;
 import com.example.bookstore.model.Rating;
-import com.example.bookstore.model.Rating;
 import com.example.bookstore.repository.BookRepository;
 import com.example.bookstore.repository.RatingRepository;
 import org.kie.api.KieServices;
@@ -33,6 +32,7 @@ public class BookRecommendationService {
         KieServices kieServices = KieServices.Factory.get();
         KieFileSystem kieFileSystem = kieServices.newKieFileSystem();
         kieFileSystem.write(ResourceFactory.newClassPathResource("rules/book-recommendation-rules.drl"));
+        kieFileSystem.write(ResourceFactory.newClassPathResource("rules/user-recommendation-rules.drl"));
 
         KieBuilder kieBuilder = kieServices.newKieBuilder(kieFileSystem);
         kieBuilder.buildAll();
