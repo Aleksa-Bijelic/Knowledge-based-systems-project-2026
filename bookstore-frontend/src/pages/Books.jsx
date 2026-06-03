@@ -76,19 +76,11 @@ function Books({ token, username }) {
   }
 
   async function loadRecommendations() {
-    if (username) {
-      setRecommendations([]);
-      setLoadingRecommendations(false);
-      setRecommendationsError(null);
-      return;
-    }
-
     try {
       setLoadingRecommendations(true);
       setRecommendationsError(null);
       const data = await request('/books/recommendations', {
         headers: {
-          'Content-Type': 'application/json',
           ...authHeader(token),
         },
       });
@@ -119,13 +111,16 @@ function Books({ token, username }) {
 
   return (
     <div className="books-page">
-      {!username && (
-        <section className="card recommendations-card">
+      <section className="card recommendations-card">
           <div className="section-header">
             <div>
               <div className="section-eyebrow">Recommended books</div>
               <h3>Books you may like</h3>
-              <p className="card-subtitle">A quick selection of books currently recommended for guests.</p>
+              <p className="card-subtitle">
+                {username
+                  ? 'Personalized recommendations based on your activity.'
+                  : 'A quick selection of books currently recommended for guests.'}
+              </p>
             </div>
           </div>
 
@@ -172,7 +167,6 @@ function Books({ token, username }) {
             </div>
           )}
         </section>
-      )}
 
       <section className="card books-card">
         <div className="books-header">

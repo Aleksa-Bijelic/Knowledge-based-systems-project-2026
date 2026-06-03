@@ -4,17 +4,23 @@ import com.example.bookstore.model.Book;
 import com.example.bookstore.repository.BookRepository;
 import com.example.bookstore.repository.RatingRepository;
 import com.example.bookstore.rules.BookRecommendationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/books")
 public class BookController {
+
+    private static final Logger log = LoggerFactory.getLogger(BookController.class);
 
     private final BookRepository bookRepository;
     private final RatingRepository ratingRepository;
@@ -35,15 +41,27 @@ public class BookController {
 
     @GetMapping("/recommendations")
     public List<BookDto> getRecommendedBooks() {
-        return bookRecommendationService.getRecommendationsForAnonymousUser().stream()
-                .map(this::mapToDto)
-                .collect(Collectors.toList());
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.isAuthenticated()
+                    && auth.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails userDetails) {
+                String username = userDetails.getUsername();
+                return bookRecommendationService.getRecommendationsForUser(username).stream()
+                        .map(this::mapToDto)
+                        .collect(Collectors.toList());
+            }
+            return bookRecommendationService.getRecommendationsForAnonymousUser().stream()
+                    .map(this::mapToDto)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Error getting recommendations", e);
+            return Collections.emptyList();
+        }
     }
 
     private static final String DEFAULT_IMAGE_URL = "https://www.klett-cotta.de/assets/default-image.jpg";
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Book> createBook(@RequestBody Book book) {
         if (book.getImageUrl() == null || book.getImageUrl().trim().isEmpty()) {
             book.setImageUrl(DEFAULT_IMAGE_URL);

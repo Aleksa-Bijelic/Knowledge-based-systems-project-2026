@@ -16,6 +16,8 @@ public interface RatingRepository extends JpaRepository<Rating, Long> {
 
     long countByBookId(Long bookId);
 
+    long countByUsername(String username);
+
     boolean existsByBookIdAndUsername(Long bookId, String username);
 
     List<Rating> findByBookId(Long bookId);

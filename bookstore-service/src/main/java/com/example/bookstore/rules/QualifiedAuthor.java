@@ -7,9 +7,13 @@ public class QualifiedAuthor {
     private boolean selected;
 
     public QualifiedAuthor(String author, long totalRatingCount) {
+        this(author, totalRatingCount, false);
+    }
+
+    public QualifiedAuthor(String author, long totalRatingCount, boolean selected) {
         this.author = author;
         this.totalRatingCount = totalRatingCount;
-        this.selected = false;
+        this.selected = selected;
     }
 
     public String getAuthor() {
