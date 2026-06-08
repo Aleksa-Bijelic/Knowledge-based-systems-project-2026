@@ -1,0 +1,216 @@
+package rules;
+
+dialect "mvel";
+
+import com.example.bank.rules.LoanRequest;
+import com.example.bank.rules.ClientFinancialProfile;
+import com.example.bank.rules.LoanAssessment;
+
+query isLoanApproved(Long clientId)
+  exists(LoanAssessment(clientId == clientId, approved == true))
+end
+
+rule "Initialize loan assessment"
+salience 100
+when
+  $req: LoanRequest($clientId: clientId)
+  not LoanAssessment(clientId == $clientId)
+then
+  insert(new LoanAssessment($clientId));
+end
+
+rule "Compute monthly payment"
+salience 90
+when
+  $req: LoanRequest($clientId: clientId, $amount: loanAmount, $installments: numberOfInstallments)
+  $assessment: LoanAssessment(clientId == $clientId, monthlyPayment == 0.0)
+then
+  double monthlyRate = 0.05 / 12.0;
+  double payment;
+  if ($installments > 0 && monthlyRate > 0) {
+    payment = $amount * (monthlyRate * Math.pow(1 + monthlyRate, (double)$installments)) /
+              (Math.pow(1 + monthlyRate, (double)$installments) - 1);
+  } else {
+    payment = $amount / $installments;
+  }
+  $assessment.setMonthlyPayment(Math.round(payment * 100.0) / 100.0);
+  update($assessment);
+end
+
+rule "Compute debt-to-income ratio"
+salience 85
+when
+  $req: LoanRequest($clientId: clientId)
+  $profile: ClientFinancialProfile(clientId == $clientId, $income: monthlyIncome, $existingPayments: totalExistingLoanPayments)
+  $assessment: LoanAssessment(clientId == $clientId, $mp: monthlyPayment, debtToIncomeRatio == 0.0)
+then
+  double totalPayments = $mp + $existingPayments;
+  double dti = ($income > 0) ? totalPayments / $income : 1.0;
+  $assessment.setDebtToIncomeRatio(Math.round(dti * 10000.0) / 10000.0);
+  update($assessment);
+end
+
+rule "Deny - loan period too short"
+salience 200
+when
+  $req: LoanRequest($clientId: clientId, $installments: numberOfInstallments)
+  eval($installments < 3)
+  $assessment: LoanAssessment(clientId == $clientId, approved == true)
+then
+  $assessment.setApproved(false);
+  $assessment.addReason("Loan period must be at least 3 months");
+  update($assessment);
+end
+
+rule "Deny - loan period too long"
+salience 200
+when
+  $req: LoanRequest($clientId: clientId, $installments: numberOfInstallments)
+  eval($installments > 360)
+  $assessment: LoanAssessment(clientId == $clientId, approved == true)
+then
+  $assessment.setApproved(false);
+  $assessment.addReason("Loan period cannot exceed 360 months (30 years)");
+  update($assessment);
+end
+
+rule "Deny - unemployed client"
+salience 190
+when
+  $req: LoanRequest($clientId: clientId, $status: employmentStatus)
+  eval($status != null && $status.toUpperCase().equals("UNEMPLOYED"))
+  $assessment: LoanAssessment(clientId == $clientId, approved == true)
+then
+  $assessment.setApproved(false);
+  $assessment.addReason("Unemployed clients are not eligible for loans");
+  update($assessment);
+end
+
+rule "Deny - fixed-term contract ends before loan repayment"
+salience 185
+when
+  $req: LoanRequest($clientId: clientId, $status: employmentStatus, $installments: numberOfInstallments, $endDate: contractEndDate)
+  eval($status != null && $status.toUpperCase().equals("FIXED_TERM") && $endDate != null)
+  $assessment: LoanAssessment(clientId == $clientId, approved == true)
+then
+  java.time.LocalDate loanEndDate = java.time.LocalDate.now().plusMonths($installments);
+  if ($endDate.isBefore(loanEndDate)) {
+    $assessment.setApproved(false);
+    $assessment.addReason("Fixed-term contract ends before loan repayment period ends");
+    update($assessment);
+  }
+end
+
+rule "Deny - debt-to-income ratio too high"
+salience 180
+when
+  $req: LoanRequest($clientId: clientId)
+  $assessment: LoanAssessment(clientId == $clientId, $dti: debtToIncomeRatio, approved == true)
+  eval($dti > 0.5)
+then
+  $assessment.setApproved(false);
+  $assessment.addReason("Debt-to-income ratio exceeds 50% threshold");
+  update($assessment);
+end
+
+rule "Deny - insufficient income"
+salience 175
+when
+  $req: LoanRequest($clientId: clientId)
+  $profile: ClientFinancialProfile(clientId == $clientId, $income: monthlyIncome)
+  $assessment: LoanAssessment(clientId == $clientId, $mp: monthlyPayment, approved == true)
+  eval($income <= 0 || $mp > $income * 0.7)
+then
+  $assessment.setApproved(false);
+  $assessment.addReason("Monthly income is insufficient to cover loan payments");
+  update($assessment);
+end
+
+rule "Risk - elderly client with long-term loan"
+salience 150
+when
+  $req: LoanRequest($clientId: clientId, $installments: numberOfInstallments)
+  $profile: ClientFinancialProfile(clientId == $clientId, $age: age)
+  $assessment: LoanAssessment(clientId == $clientId, $risk: riskScore)
+  eval($age > 60 && $installments > 120)
+then
+  $assessment.setRiskScore($risk + 30.0);
+  $assessment.addReason("Higher risk: elderly client with long-term loan");
+  update($assessment);
+end
+
+rule "Risk - multiple existing loans"
+salience 145
+when
+  $req: LoanRequest($clientId: clientId)
+  $profile: ClientFinancialProfile(clientId == $clientId, $loanCount: existingLoanCount)
+  $assessment: LoanAssessment(clientId == $clientId, $risk: riskScore)
+  eval($loanCount >= 3)
+then
+  $assessment.setRiskScore($risk + 20.0);
+  $assessment.addReason("Moderate risk: client has multiple existing loans");
+  update($assessment);
+end
+
+rule "Bonus - good repayment history"
+salience 140
+when
+  $req: LoanRequest($clientId: clientId)
+  $profile: ClientFinancialProfile(clientId == $clientId, hasGoodRepaymentHistory == true)
+  $assessment: LoanAssessment(clientId == $clientId, $risk: riskScore)
+then
+  $assessment.setRiskScore(Math.max(0.0, $risk - 15.0));
+  $assessment.addReason("Positive factor: client has good repayment history");
+  update($assessment);
+end
+
+rule "Bonus - indefinite employment"
+salience 135
+when
+  $req: LoanRequest($clientId: clientId, $status: employmentStatus)
+  $profile: ClientFinancialProfile(clientId == $clientId, $age: age)
+  $assessment: LoanAssessment(clientId == $clientId, $risk: riskScore)
+  eval($status != null && $status.toUpperCase().equals("INDEFINITE") && $age < 55)
+then
+  $assessment.setRiskScore(Math.max(0.0, $risk - 10.0));
+  $assessment.addReason("Positive factor: stable indefinite employment");
+  update($assessment);
+end
+
+rule "Set risk level"
+salience 50
+when
+  $assessment: LoanAssessment($risk: riskScore, riskLevel == null)
+then
+  String level;
+  if ($risk < 20.0) {
+    level = "LOW";
+  } else if ($risk < 50.0) {
+    level = "MEDIUM";
+  } else {
+    level = "HIGH";
+  }
+  $assessment.setRiskLevel(level);
+  update($assessment);
+end
+
+rule "Final approval - low risk"
+salience 10
+when
+  $assessment: LoanAssessment(approved == true, $risk: riskScore)
+  eval($risk < 50.0)
+then
+  $assessment.setApproved(true);
+  update($assessment);
+end
+
+rule "Final denial - high risk"
+salience 10
+when
+  $assessment: LoanAssessment(approved == true, $risk: riskScore)
+  eval($risk >= 50.0)
+then
+  $assessment.setApproved(false);
+  $assessment.addReason("Overall risk score is too high for loan approval");
+  update($assessment);
+end
