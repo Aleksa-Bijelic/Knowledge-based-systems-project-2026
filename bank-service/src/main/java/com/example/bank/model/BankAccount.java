@@ -21,12 +21,6 @@ public class BankAccount {
     @Column(nullable = false)
     private String currency;
 
-    @Column(name = "daily_limit", nullable = false)
-    private double dailyLimit;
-
-    @Column(name = "monthly_limit", nullable = false)
-    private double monthlyLimit;
-
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -67,22 +61,6 @@ public class BankAccount {
 
     public void setCurrency(String currency) {
         this.currency = currency;
-    }
-
-    public double getDailyLimit() {
-        return dailyLimit;
-    }
-
-    public void setDailyLimit(double dailyLimit) {
-        this.dailyLimit = dailyLimit;
-    }
-
-    public double getMonthlyLimit() {
-        return monthlyLimit;
-    }
-
-    public void setMonthlyLimit(double monthlyLimit) {
-        this.monthlyLimit = monthlyLimit;
     }
 
     public LocalDateTime getCreatedAt() {

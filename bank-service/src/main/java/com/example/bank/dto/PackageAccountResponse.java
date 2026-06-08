@@ -77,20 +77,15 @@ public class PackageAccountResponse {
         private String accountNumber;
         private double balance;
         private String currency;
-        private double dailyLimit;
-        private double monthlyLimit;
 
         public BankAccountDto() {
         }
 
-        public BankAccountDto(Long id, String accountNumber, double balance, String currency,
-                              double dailyLimit, double monthlyLimit) {
+        public BankAccountDto(Long id, String accountNumber, double balance, String currency) {
             this.id = id;
             this.accountNumber = accountNumber;
             this.balance = balance;
             this.currency = currency;
-            this.dailyLimit = dailyLimit;
-            this.monthlyLimit = monthlyLimit;
         }
 
         public Long getId() {
@@ -123,22 +118,6 @@ public class PackageAccountResponse {
 
         public void setCurrency(String currency) {
             this.currency = currency;
-        }
-
-        public double getDailyLimit() {
-            return dailyLimit;
-        }
-
-        public void setDailyLimit(double dailyLimit) {
-            this.dailyLimit = dailyLimit;
-        }
-
-        public double getMonthlyLimit() {
-            return monthlyLimit;
-        }
-
-        public void setMonthlyLimit(double monthlyLimit) {
-            this.monthlyLimit = monthlyLimit;
         }
     }
 

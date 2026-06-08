@@ -19,3 +19,8 @@ spring:
 jwt:
   secret: q9H@r7wZs4L1u8pBv6F3j2N1xYc0TgKm
   expiration-ms: 86400000
+
+bank:
+  service:
+    url: ${BANK_SERVICE_URL:http://localhost:8082}
+    receiver-account-number: ${BANK_RECEIVER_ACCOUNT:2659904564506841}

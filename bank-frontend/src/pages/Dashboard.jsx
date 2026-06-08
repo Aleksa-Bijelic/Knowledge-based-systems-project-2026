@@ -130,8 +130,6 @@ function PackageAccountCard({ pkg }) {
           <div className="package-card-value">{account.accountNumber}</div>
           <div className="package-card-meta">
             <span>Balance: <strong>{Number(account.balance).toFixed(2)} {account.currency}</strong></span>
-            <span>Daily limit: {Number(account.dailyLimit).toFixed(0)} {account.currency}</span>
-            <span>Monthly limit: {Number(account.monthlyLimit).toFixed(0)} {account.currency}</span>
           </div>
         </div>
       )}

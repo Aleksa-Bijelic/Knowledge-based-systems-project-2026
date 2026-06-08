@@ -4,6 +4,57 @@ import { useState, useEffect } from 'react';
 
 const DEFAULT_IMAGE_URL = 'https://www.klett-cotta.de/assets/default-image.jpg';
 
+function CardPaymentForm({ cardData, setCardData, error }) {
+  return (
+    <div className="card-payment-form">
+      <h4>Card Payment Details</h4>
+      <div className="form-row">
+        <label>Card Number</label>
+        <input
+          type="text"
+          placeholder="16-digit card number"
+          value={cardData.cardNumber}
+          onChange={(e) => setCardData({ ...cardData, cardNumber: e.target.value })}
+          maxLength={16}
+          required
+        />
+      </div>
+      <div className="form-row">
+        <label>Cardholder Name</label>
+        <input
+          type="text"
+          placeholder="Name on card"
+          value={cardData.cardholderName}
+          onChange={(e) => setCardData({ ...cardData, cardholderName: e.target.value })}
+          required
+        />
+      </div>
+      <div className="form-grid">
+        <div className="form-row">
+          <label>Expiration Date</label>
+          <input
+            type="date"
+            value={cardData.cardExpirationDate}
+            onChange={(e) => setCardData({ ...cardData, cardExpirationDate: e.target.value })}
+            required
+          />
+        </div>
+        <div className="form-row">
+          <label>CVV</label>
+          <input
+            type="text"
+            placeholder="3-digit CVV"
+            value={cardData.cardCvv}
+            onChange={(e) => setCardData({ ...cardData, cardCvv: e.target.value })}
+            maxLength={3}
+            required
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Cart({ cart, onUpdateQuantity, onRemoveFromCart, onClearCart, token, username }) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -11,6 +62,12 @@ function Cart({ cart, onUpdateQuantity, onRemoveFromCart, onClearCart, token, us
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [preview, setPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [cardData, setCardData] = useState({
+    cardNumber: '',
+    cardCvv: '',
+    cardExpirationDate: '',
+    cardholderName: '',
+  });
 
   const cartTotal = cart.reduce((sum, item) => sum + item.book.price * item.quantity, 0);
 
@@ -25,6 +82,25 @@ function Cart({ cart, onUpdateQuantity, onRemoveFromCart, onClearCart, token, us
       return;
     }
 
+    if (paymentMethod === 'card') {
+      if (!cardData.cardNumber || cardData.cardNumber.length < 16) {
+        setError('Please enter a valid 16-digit card number');
+        return;
+      }
+      if (!cardData.cardCvv || cardData.cardCvv.length < 3) {
+        setError('Please enter a valid 3-digit CVV');
+        return;
+      }
+      if (!cardData.cardExpirationDate) {
+        setError('Please enter card expiration date');
+        return;
+      }
+      if (!cardData.cardholderName || cardData.cardholderName.trim() === '') {
+        setError('Please enter cardholder name');
+        return;
+      }
+    }
+
     setLoading(true);
     setError(null);
 
@@ -37,6 +113,13 @@ function Cart({ cart, onUpdateQuantity, onRemoveFromCart, onClearCart, token, us
           quantity: item.quantity,
         })),
       };
+
+      if (paymentMethod === 'card') {
+        orderRequest.cardNumber = cardData.cardNumber;
+        orderRequest.cardCvv = cardData.cardCvv;
+        orderRequest.cardExpirationDate = cardData.cardExpirationDate;
+        orderRequest.cardholderName = cardData.cardholderName;
+      }
 
       const response = await request('/orders', {
         method: 'POST',
@@ -218,6 +301,10 @@ function Cart({ cart, onUpdateQuantity, onRemoveFromCart, onClearCart, token, us
           </label>
         </div>
       </div>
+
+      {paymentMethod === 'card' && (
+        <CardPaymentForm cardData={cardData} setCardData={setCardData} error={error} />
+      )}
 
       <div className="cart-actions">
         <button className="btn btn-secondary" onClick={() => navigate('/books')}>

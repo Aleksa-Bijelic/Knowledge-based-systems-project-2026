@@ -24,8 +24,6 @@ import java.util.stream.Collectors;
 public class PackageAccountService {
 
     private static final Set<String> SUPPORTED_CURRENCIES = Set.of("RSD", "EUR", "USD");
-    private static final double DEFAULT_DAILY_LIMIT = 50000.0;
-    private static final double DEFAULT_MONTHLY_LIMIT = 300000.0;
     private static final int DEFAULT_CARD_VALIDITY_YEARS = 3;
 
     private final BankUserRepository bankUserRepository;
@@ -83,8 +81,6 @@ public class PackageAccountService {
         bankAccount.setAccountNumber(generateUniqueAccountNumber());
         bankAccount.setBalance(request.getInitialBalance() != null ? request.getInitialBalance() : 0.0);
         bankAccount.setCurrency(currency);
-        bankAccount.setDailyLimit(DEFAULT_DAILY_LIMIT);
-        bankAccount.setMonthlyLimit(DEFAULT_MONTHLY_LIMIT);
         bankAccount.setCreatedAt(LocalDateTime.now());
         bankAccount.setPackageAccount(savedPackage);
         BankAccount savedAccount = bankAccountRepository.save(bankAccount);
@@ -163,9 +159,7 @@ public class PackageAccountService {
                         account.getId(),
                         account.getAccountNumber(),
                         account.getBalance(),
-                        account.getCurrency(),
-                        account.getDailyLimit(),
-                        account.getMonthlyLimit())
+                        account.getCurrency())
                 : null;
 
         PackageAccountResponse.PaymentCardDto cardDto = card != null

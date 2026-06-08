@@ -4,7 +4,7 @@ import { FiLogOut, FiUserPlus, FiCreditCard } from 'react-icons/fi';
 function NavBar({ username, onLogout }) {
   return (
     <nav className="topbar">
-      <div className="brand">Olive Bank</div>
+      <div className="brand">Ocean Bank</div>
       <div className="tabs">
         {username && <Link to="/dashboard" className="tab">Dashboard</Link>}
       </div>

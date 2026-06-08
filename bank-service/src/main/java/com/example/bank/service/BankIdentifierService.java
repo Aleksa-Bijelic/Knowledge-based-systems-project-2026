@@ -21,7 +21,7 @@ public class BankIdentifierService {
 
     public String generateCardNumber() {
         StringBuilder builder = new StringBuilder(CARD_PREFIX);
-        for (int i = 0; i < 12; i++) {
+        for (int i = 0; i < 11; i++) {
             builder.append(RANDOM.nextInt(10));
         }
         String number = builder.toString();

@@ -1341,3 +1341,39 @@ button:disabled,
   margin-right: 12px;
 }
 
+/* Card Payment Form */
+.card-payment-form {
+  margin: 16px 0;
+  padding: 20px;
+  background: var(--bg-panel);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.card-payment-form h4 {
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.card-payment-form .form-row {
+  margin-bottom: 14px;
+}
+
+.card-payment-form .form-row:last-child {
+  margin-bottom: 0;
+}
+
+.card-payment-form .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.summary-note {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  margin-top: 10px;
+  font-style: italic;
+}
+

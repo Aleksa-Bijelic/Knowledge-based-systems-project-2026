@@ -40,7 +40,7 @@ function Register() {
     <div className="card auth-card">
       <h2>Create Bank Account</h2>
       <p className="card-subtitle">
-        Register as a client of Olive Bank. After registration, you can sign in and open package accounts.
+        Register as a client of Ocean Bank. After registration, you can sign in and open package accounts.
       </p>
       <form onSubmit={handleSubmit}>
         <div className="form-row">

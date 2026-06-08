@@ -11,6 +11,7 @@ import com.example.bookstore.repository.BookRepository;
 import com.example.bookstore.repository.OrderRepository;
 import com.example.bookstore.rules.DiscountContext;
 import com.example.bookstore.rules.OrderDiscountService;
+import com.example.bookstore.service.BankPaymentService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,6 +19,7 @@ import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -26,11 +28,14 @@ public class OrderController {
     private final BookRepository bookRepository;
     private final OrderRepository orderRepository;
     private final OrderDiscountService discountService;
+    private final BankPaymentService bankPaymentService;
 
-    public OrderController(BookRepository bookRepository, OrderRepository orderRepository, OrderDiscountService discountService) {
+    public OrderController(BookRepository bookRepository, OrderRepository orderRepository,
+                           OrderDiscountService discountService, BankPaymentService bankPaymentService) {
         this.bookRepository = bookRepository;
         this.orderRepository = orderRepository;
         this.discountService = discountService;
+        this.bankPaymentService = bankPaymentService;
     }
 
     @PostMapping
@@ -40,6 +45,38 @@ public class OrderController {
             DiscountContext discountContext = discountService.evaluate(order);
             order.setDiscountAmount(discountContext.getChosenDiscount());
             order.setFinalAmount(order.getTotalAmount() - discountContext.getChosenDiscount());
+
+            // Process card payment if payment method is "card"
+            if ("card".equals(order.getPaymentMethod())) {
+                if (request.getCardNumber() == null || request.getCardNumber().isBlank()) {
+                    return ResponseEntity.badRequest().body("Card number is required for card payment");
+                }
+                if (request.getCardCvv() == null || request.getCardCvv().isBlank()) {
+                    return ResponseEntity.badRequest().body("Card CVV is required for card payment");
+                }
+                if (request.getCardExpirationDate() == null || request.getCardExpirationDate().isBlank()) {
+                    return ResponseEntity.badRequest().body("Card expiration date is required for card payment");
+                }
+                if (request.getCardholderName() == null || request.getCardholderName().isBlank()) {
+                    return ResponseEntity.badRequest().body("Cardholder name is required for card payment");
+                }
+
+                Map<String, Object> paymentResult = bankPaymentService.processCardPayment(
+                        request.getCardNumber(),
+                        request.getCardCvv(),
+                        request.getCardExpirationDate(),
+                        request.getCardholderName(),
+                        order.getFinalAmount()
+                );
+
+                Boolean success = (Boolean) paymentResult.get("success");
+                if (success == null || !success) {
+                    String message = (String) paymentResult.get("message");
+                    return ResponseEntity.badRequest().body("Payment failed: " + message);
+                }
+
+                order.setStatus("COMPLETED");
+            }
 
             Order saved = orderRepository.save(order);
             OrderPreviewResponse response = buildResponse(order, discountContext);

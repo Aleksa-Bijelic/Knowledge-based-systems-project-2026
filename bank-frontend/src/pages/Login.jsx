@@ -27,7 +27,7 @@ function Login({ onLogin }) {
   return (
     <div className="card auth-card">
       <h2>Welcome Back</h2>
-      <p className="card-subtitle">Sign in to your Olive Bank account to manage your package accounts.</p>
+      <p className="card-subtitle">Sign in to your Ocean Bank account to manage your package accounts.</p>
       <form onSubmit={handleSubmit}>
         <div className="form-row">
           <label>Username</label>
