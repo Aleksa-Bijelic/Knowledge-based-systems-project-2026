@@ -62,12 +62,12 @@ query hasValidLoanPeriod(Long $clientId)
     withinMaximumPeriod($clientId; )
 end
 
-// Level 3: Minimum period check
+// Level 3: Minimum period check (3 months)
 query meetsMinimumPeriod(Long $clientId)
     LoanRequest(clientId == $clientId, numberOfInstallments >= 3)
 end
 
-// Level 3: Maximum period check
+// Level 3: Maximum period check (360 months = 30 years)
 query withinMaximumPeriod(Long $clientId)
     LoanRequest(clientId == $clientId, numberOfInstallments <= 360)
 end
@@ -77,6 +77,7 @@ end
 // ========================================================================
 query hasStableEmployment(Long $clientId)
     isNotUnemployed($clientId; ) and
+    hasValidContractStartDate($clientId; ) and
     employmentCoversFullTerm($clientId; )
 end
 
@@ -86,22 +87,32 @@ query isNotUnemployed(Long $clientId)
     eval(!$req.getEmploymentStatus().toUpperCase().equals("UNEMPLOYED"))
 end
 
-// Level 3: Contract must cover the full loan repayment period
-query employmentCoversFullTerm(Long $clientId)
-    $req: LoanRequest(clientId == $clientId, $inst: numberOfInstallments)
-    (isIndefinite($req; ) or fixedTermCoversPeriod($req, $inst; ))
+// Level 3: Contract start date must be provided when employed
+query hasValidContractStartDate(Long $clientId)
+    $req: LoanRequest(clientId == $clientId)
+    eval($req.getEmploymentStatus().toUpperCase().equals("UNEMPLOYED")
+         || $req.getContractStartDate() != null)
 end
 
-// Level 4: Indefinite employment always covers the full term
-query isIndefinite(LoanRequest $req)
+// Level 3: Contract must cover the full loan repayment period
+query employmentCoversFullTerm(Long $clientId)
+    indefiniteEmployment($clientId; )
+    or
+    fixedTermEmploymentCoversLoan($clientId; )
+end
+
+// Level 4: Indefinite employment covers the full term by definition
+query indefiniteEmployment(Long $clientId)
+    $req: LoanRequest(clientId == $clientId, employmentStatus != null)
     eval(!$req.getEmploymentStatus().toUpperCase().equals("FIXED_TERM"))
 end
 
-// Level 4: Fixed-term contract must extend beyond the loan period
-query fixedTermCoversPeriod(LoanRequest $req, int $inst)
+// Level 4: Fixed-term contract must extend at least until the loan end date
+query fixedTermEmploymentCoversLoan(Long $clientId)
+    $req: LoanRequest(clientId == $clientId, employmentStatus != null, $inst: numberOfInstallments)
     eval($req.getEmploymentStatus().toUpperCase().equals("FIXED_TERM") &&
          $req.getContractEndDate() != null &&
-         $req.getContractEndDate().isAfter(LocalDate.now().plusMonths((long) $inst)))
+         !$req.getContractEndDate().isBefore(LocalDate.now().plusMonths((long) $inst)))
 end
 
 // ========================================================================
@@ -119,7 +130,7 @@ query paymentIsAffordable(Long $clientId)
     eval($income > 0 && computeMonthlyPayment($amount, $inst) <= $income * 0.7)
 end
 
-// Level 3: Total debt (new + existing) must not exceed 50% of income
+// Level 3: Total debt (new payment + existing loan payments) ≤ 50% of income
 query totalDebtIsAcceptable(Long $clientId)
     $req: LoanRequest(clientId == $clientId, $amount: loanAmount, $inst: numberOfInstallments)
     $profile: ClientFinancialProfile(clientId == $clientId, $income: monthlyIncome, $existingPayments: totalExistingLoanPayments)
@@ -136,9 +147,9 @@ query hasAcceptableRisk(Long $clientId)
 end
 
 // ========================================================================
-// FORWARD-CHAINING RULES — triggered by backward chaining results
-// These rules exist only to capture the backward chaining conclusions
-// into a result fact (LoanAssessment) that the Java code can read.
+// RULES — triggered by backward chaining query results
+// These capture the backward chaining conclusions into a LoanAssessment
+// fact that the Java code can read.
 // ========================================================================
 
 rule "Initialize Loan Assessment"
@@ -167,11 +178,12 @@ rule "Loan Approved"
     lock-on-active true
     when
         $assessment: LoanAssessment(clientId == $clientId,
-            reasons excludes "Loan approved: all criteria satisfied via backward chaining")
+            reasons excludes "Loan approved")
         isLoanApproved($clientId; )
     then
         modify($assessment) {
-            addReason("Loan approved: all criteria satisfied via backward chaining")
+            setApproved(true),
+            addReason("Loan approved")
         }
 end
 
@@ -195,7 +207,6 @@ rule "Reject Unstable Employment"
     when
         $assessment: LoanAssessment(clientId == $clientId,
             reasons excludes "Client does not have stable employment for the loan duration")
-        hasValidLoanPeriod($clientId; )
         not hasStableEmployment($clientId; )
     then
         modify($assessment) {
@@ -210,8 +221,6 @@ rule "Reject Insufficient Income"
     when
         $assessment: LoanAssessment(clientId == $clientId,
             reasons excludes "Insufficient income to cover loan payments")
-        hasValidLoanPeriod($clientId; )
-        hasStableEmployment($clientId; )
         not hasSufficientIncome($clientId; )
     then
         modify($assessment) {
@@ -226,9 +235,6 @@ rule "Reject Unacceptable Risk"
     when
         $assessment: LoanAssessment(clientId == $clientId,
             reasons excludes "Overall risk score is too high for loan approval")
-        hasValidLoanPeriod($clientId; )
-        hasStableEmployment($clientId; )
-        hasSufficientIncome($clientId; )
         not hasAcceptableRisk($clientId; )
     then
         modify($assessment) {
