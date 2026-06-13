@@ -5,6 +5,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -35,6 +36,9 @@ public class BankUser implements UserDetails {
     @Column(nullable = false)
     private String role;
 
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -42,13 +46,14 @@ public class BankUser implements UserDetails {
     }
 
     public BankUser(String username, String password, String email, String firstName,
-                    String lastName, String role, LocalDateTime createdAt) {
+                    String lastName, String role, LocalDate dateOfBirth, LocalDateTime createdAt) {
         this.username = username;
         this.password = password;
         this.email = email;
         this.firstName = firstName;
         this.lastName = lastName;
         this.role = role;
+        this.dateOfBirth = dateOfBirth;
         this.createdAt = createdAt;
     }
 
@@ -115,6 +120,14 @@ public class BankUser implements UserDetails {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public LocalDate getDateOfBirth() {
+        return dateOfBirth;
+    }
+
+    public void setDateOfBirth(LocalDate dateOfBirth) {
+        this.dateOfBirth = dateOfBirth;
     }
 
     @Override

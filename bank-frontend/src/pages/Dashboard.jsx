@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { FiPlus, FiCreditCard, FiRefreshCw } from 'react-icons/fi';
+import { FiPlus, FiCreditCard, FiRefreshCw, FiFileText } from 'react-icons/fi';
 import { request, authHeader } from '../api';
+import LoanRequestForm from '../components/LoanRequestForm';
+import LoanAssessmentResult from '../components/LoanAssessmentResult';
 
 const CURRENCIES = ['RSD', 'EUR', 'USD'];
 
@@ -151,7 +153,58 @@ function PackageAccountCard({ pkg }) {
   );
 }
 
-function Dashboard({ token, username }) {
+function OfficerDashboard({ token, username }) {
+  const [assessmentResult, setAssessmentResult] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+
+  return (
+    <div className="dashboard-page">
+      <section className="card welcome-card">
+        <div>
+          <div className="section-eyebrow">Officer Portal</div>
+          <h2>Hello, {username}</h2>
+          <p className="card-subtitle">
+            Process loan requests for bank clients. Submit an assessment to evaluate loan eligibility.
+          </p>
+        </div>
+        <div className="welcome-actions">
+          <button
+            className="btn btn-primary"
+            onClick={() => { setShowForm((prev) => !prev); setAssessmentResult(null); }}
+          >
+            <FiFileText className="icon" />
+            {showForm ? 'Close form' : 'New loan assessment'}
+          </button>
+        </div>
+      </section>
+
+      {showForm && (
+        <section className="card">
+          <h3>Loan Assessment</h3>
+          <p className="card-subtitle">
+            Fill in the loan details and the rule-based system will evaluate whether the client qualifies.
+          </p>
+          <LoanRequestForm
+            token={token}
+            onAssessmentResult={(result) => {
+              setAssessmentResult(result);
+              setShowForm(false);
+            }}
+          />
+        </section>
+      )}
+
+      {assessmentResult && (
+        <section className="card">
+          <h3>Assessment Result</h3>
+          <LoanAssessmentResult result={assessmentResult} />
+        </section>
+      )}
+    </div>
+  );
+}
+
+function ClientDashboard({ token, username }) {
   const [packageAccounts, setPackageAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -239,6 +292,16 @@ function Dashboard({ token, username }) {
         )}
       </section>
     </div>
+  );
+}
+
+function Dashboard({ token, username, role }) {
+  const isOfficer = role === 'ROLE_OFFICER';
+
+  return isOfficer ? (
+    <OfficerDashboard token={token} username={username} />
+  ) : (
+    <ClientDashboard token={token} username={username} />
   );
 }
 

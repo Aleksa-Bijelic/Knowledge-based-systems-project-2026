@@ -22,11 +22,11 @@ public class DataInitializer {
 
     @Bean
     public CommandLineRunner initDefaultUsers(BankUserRepository bankUserRepository,
-                                              PasswordEncoder passwordEncoder,
-                                              PackageAccountRepository packageAccountRepository,
-                                              BankAccountRepository bankAccountRepository,
-                                              PaymentCardRepository paymentCardRepository,
-                                              BankIdentifierService identifierService) {
+                                               PasswordEncoder passwordEncoder,
+                                               PackageAccountRepository packageAccountRepository,
+                                               BankAccountRepository bankAccountRepository,
+                                               PaymentCardRepository paymentCardRepository,
+                                               BankIdentifierService identifierService) {
         return args -> {
             String officerUsername = "sluzbenik";
             if (!bankUserRepository.existsByUsername(officerUsername)) {
@@ -37,6 +37,7 @@ public class DataInitializer {
                 officer.setFirstName("Petar");
                 officer.setLastName("Petrović");
                 officer.setRole("ROLE_OFFICER");
+                officer.setDateOfBirth(LocalDate.of(1985, 3, 15));
                 officer.setCreatedAt(LocalDateTime.now());
                 bankUserRepository.save(officer);
                 System.out.println("Created default bank officer: sluzbenik / sluzbenik123");
@@ -51,6 +52,7 @@ public class DataInitializer {
                 client.setFirstName("Oliva");
                 client.setLastName("Maslina");
                 client.setRole("ROLE_CLIENT");
+                client.setDateOfBirth(LocalDate.of(1990, 7, 22));
                 client.setCreatedAt(LocalDateTime.now());
                 bankUserRepository.save(client);
                 System.out.println("Created default bank client: oliva / oliva123");

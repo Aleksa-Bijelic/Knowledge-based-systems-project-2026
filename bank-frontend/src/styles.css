@@ -186,6 +186,18 @@ select {
   font-size: 0.92rem;
 }
 
+.role-badge {
+  display: inline-flex;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 .card {
   background: white;
   border-radius: var(--radius-lg);
@@ -504,4 +516,166 @@ label {
   .form-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Loan form */
+.loan-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Assessment result */
+.assessment-result {
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-top: 8px;
+}
+
+.assessment-result.approved {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1px solid #bbf7d0;
+}
+
+.assessment-result.denied {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border: 1px solid #fecaca;
+}
+
+.assessment-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.assessment-header h3 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.assessment-subtitle {
+  color: var(--text-secondary);
+  margin: 4px 0 0;
+}
+
+.status-approved {
+  color: var(--success);
+}
+
+.status-denied {
+  color: var(--error);
+}
+
+.assessment-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.metric-card {
+  background: white;
+  border-radius: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.metric-label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.metric-value {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.risk-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.risk-low {
+  color: #166534;
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+}
+
+.risk-medium {
+  color: #854d0e;
+  background: #fef9c3;
+  border: 1px solid #fde68a;
+}
+
+.risk-high {
+  color: #7f1d1d;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+}
+
+.assessment-reasons {
+  background: white;
+  border-radius: 14px;
+  padding: 18px;
+  border: 1px solid var(--border);
+}
+
+.reasons-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.assessment-reasons ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.assessment-reasons li {
+  padding: 8px 12px;
+  border-radius: 10px;
+  margin-bottom: 6px;
+  font-size: 0.92rem;
+}
+
+.reason-positive {
+  color: #166534;
+  background: #f0fdf4;
+  border: 1px solid #dcfce7;
+}
+
+.reason-negative {
+  color: #7f1d1d;
+  background: #fef2f2;
+  border: 1px solid #fee2e2;
+}
+
+/* Spinner animation */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
 }

@@ -20,7 +20,10 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class LoanService {
@@ -62,17 +65,14 @@ public class LoanService {
         try {
             kieSession.insert(loanRequest);
             kieSession.insert(profile);
+
             kieSession.fireAllRules();
 
-            var objects = kieSession.getObjects(obj -> obj instanceof LoanAssessment);
-            if (!objects.isEmpty()) {
-                return (LoanAssessment) objects.iterator().next();
-            }
+            LoanAssessment assessment = (LoanAssessment) kieSession.getObjects(
+                    o -> o instanceof LoanAssessment
+            ).iterator().next();
 
-            LoanAssessment fallback = new LoanAssessment(loanRequest.getClientId());
-            fallback.setApproved(false);
-            fallback.addReason("Unable to complete loan assessment");
-            return fallback;
+            return assessment;
         } finally {
             kieSession.dispose();
         }
@@ -82,27 +82,61 @@ public class LoanService {
         BankUser client = bankUserRepository.findById(clientId)
                 .orElseThrow(() -> new IllegalArgumentException("Client not found: " + clientId));
 
-        int age = Period.between(client.getCreatedAt().toLocalDate(), LocalDate.now()).getYears() + 25;
+        int age;
+        if (client.getDateOfBirth() != null) {
+            age = Period.between(client.getDateOfBirth(), LocalDate.now()).getYears();
+        } else {
+            age = Period.between(client.getCreatedAt().toLocalDate(), LocalDate.now()).getYears();
+        }
 
         List<PackageAccount> packageAccounts = packageAccountRepository.findByClientId(clientId);
         double totalBalance = 0.0;
+        List<String> clientAccountNumbers = new ArrayList<>();
+
         for (PackageAccount pa : packageAccounts) {
-            for (BankAccount account : bankAccountRepository.findAll()) {
-                if (account.getPackageAccount() != null && account.getPackageAccount().getId().equals(pa.getId())) {
-                    totalBalance += account.getBalance();
-                }
+            List<BankAccount> accounts = bankAccountRepository.findByPackageAccountId(pa.getId());
+            for (BankAccount account : accounts) {
+                totalBalance += account.getBalance();
+                clientAccountNumbers.add(account.getAccountNumber());
             }
         }
 
-        List<Transaction> allTransactions = transactionRepository
-                .findBySenderAccountNumberOrReceiverAccountNumber("", "");
+        List<Transaction> clientTransactions = new ArrayList<>();
+        for (String accountNumber : clientAccountNumbers) {
+            clientTransactions.addAll(transactionRepository.findBySenderAccountNumber(accountNumber));
+            clientTransactions.addAll(transactionRepository.findByReceiverAccountNumber(accountNumber));
+        }
 
-        double monthlyIncome = estimateMonthlyIncome(clientId, allTransactions);
+        Set<Long> seenTransactionIds = new HashSet<>();
+        List<Transaction> uniqueTransactions = new ArrayList<>();
+        for (Transaction t : clientTransactions) {
+            if (seenTransactionIds.add(t.getId())) {
+                uniqueTransactions.add(t);
+            }
+        }
+
+        double monthlyIncome = estimateMonthlyIncome(uniqueTransactions);
         double existingLoanPayments = 0.0;
         int existingLoanCount = 0;
         double totalExistingLoanAmount = 0.0;
 
-        boolean hasGoodRepaymentHistory = checkRepaymentHistory(clientId, allTransactions);
+        for (Transaction t : uniqueTransactions) {
+            if (t.getDescription() != null && t.getDescription().toLowerCase().contains("loan")) {
+                existingLoanCount++;
+                if (t.getSenderAccountNumber() != null
+                    && clientAccountNumbers.contains(t.getSenderAccountNumber())
+                    && t.getStatus().equals("COMPLETED")) {
+                    existingLoanPayments += t.getAmount();
+                }
+            }
+        }
+
+        boolean hasGoodRepaymentHistory = false;
+        long completedIncoming = uniqueTransactions.stream()
+                .filter(t -> t.getReceiverAccountNumber() != null
+                        && t.getStatus().equals("COMPLETED"))
+                .count();
+        hasGoodRepaymentHistory = completedIncoming >= 3;
 
         return new ClientFinancialProfile(
                 clientId,
@@ -116,7 +150,7 @@ public class LoanService {
         );
     }
 
-    private double estimateMonthlyIncome(Long clientId, List<Transaction> transactions) {
+    private double estimateMonthlyIncome(List<Transaction> transactions) {
         LocalDateTime sixMonthsAgo = LocalDateTime.now().minusMonths(6);
         double totalReceived = 0.0;
 
@@ -129,9 +163,5 @@ public class LoanService {
         }
 
         return totalReceived / 6.0;
-    }
-
-    private boolean checkRepaymentHistory(Long clientId, List<Transaction> transactions) {
-        return true;
     }
 }

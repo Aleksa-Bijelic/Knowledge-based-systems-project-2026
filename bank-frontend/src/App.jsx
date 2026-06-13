@@ -43,7 +43,7 @@ function App() {
   return (
     <BrowserRouter>
       <div className="app-shell">
-        <NavBar username={username} onLogout={handleLogout} />
+        <NavBar username={username} role={role} onLogout={handleLogout} />
         <main className="page-container">
           <Routes>
             <Route
@@ -66,7 +66,7 @@ function App() {
               path="/dashboard"
               element={
                 token
-                  ? <Dashboard token={token} username={username} />
+                  ? <Dashboard token={token} username={username} role={role} />
                   : <Navigate to="/login" replace />
               }
             />
