@@ -1,57 +1,75 @@
 package rules;
 
-dialect "mvel";
-
-import com.example.bank.rules.LoanRequest;
+import com.example.bank.rules.LoanRequestFact;
 import com.example.bank.rules.ClientFinancialProfile;
 import com.example.bank.rules.LoanAssessment;
+import com.example.bank.rules.LoanFact;
+import com.example.bank.rules.LoanRepaymentFact;
 import java.time.LocalDate;
 
 function double computeMonthlyPayment(double amount, int installments) {
-    double monthlyRate = 0.05 / 12.0;
-    if (installments > 0 && monthlyRate > 0) {
-        double payment = (amount * monthlyRate * Math.pow(1 + monthlyRate, installments)) /
-                         (Math.pow(1 + monthlyRate, installments) - 1);
+    double annualRate = 0.05;
+    if (installments <= 0) return 0.0;
+    double monthlyRate = annualRate / 12.0;
+    if (monthlyRate > 0) {
+        double factor = Math.pow(1 + monthlyRate, installments);
+        double payment = (amount * monthlyRate * factor) / (factor - 1);
         return Math.round(payment * 100.0) / 100.0;
     }
-    return installments > 0 ? Math.round((amount / installments) * 100.0) / 100.0 : 0.0;
+    return Math.round((amount / installments) * 100.0) / 100.0;
 }
 
-function double computeRiskScore(LoanRequest req, ClientFinancialProfile profile) {
+function double computeRiskScore(LoanRequestFact req, ClientFinancialProfile profile) {
     double score = 0.0;
     if (profile.getAge() > 60 && req.getNumberOfInstallments() > 120) {
         score += 30.0;
     }
+    if (profile.getAge() > 55 && req.getNumberOfInstallments() > 180) {
+        score += 15.0;
+    }
+    if (profile.getAccountBalance() < req.getLoanAmount() * 0.1) {
+        score += 5.0;
+    }
     if (profile.getExistingLoanCount() >= 3) {
         score += 20.0;
+    } else if (profile.getExistingLoanCount() >= 1) {
+        score += 10.0;
     }
-    if (profile.isHasGoodRepaymentHistory()) {
-        score = Math.max(0.0, score - 15.0);
+    if (req.getEmploymentStatus() != null
+        && req.getEmploymentStatus().toUpperCase().equals("FIXED_TERM")) {
+        score += 10.0;
     }
     if (req.getEmploymentStatus() != null
         && req.getEmploymentStatus().toUpperCase().equals("INDEFINITE")
         && profile.getAge() < 55) {
         score = Math.max(0.0, score - 10.0);
     }
+    if (profile.getMonthlyIncome() > 0
+        && req.getLoanAmount() <= profile.getMonthlyIncome() * 12.0) {
+        score = Math.max(0.0, score - 5.0);
+    }
     return score;
 }
 
 function String computeRiskLevel(double score) {
-    if (score < 20.0) return "LOW";
-    if (score < 50.0) return "MEDIUM";
-    return "HIGH";
+    if (score < 15.0) return "LOW";
+    if (score < 35.0) return "MEDIUM";
+    if (score < 50.0) return "HIGH";
+    return "VERY_HIGH";
 }
 
 // ========================================================================
-// BACKWARD CHAINING QUERY HIERARCHY (4 levels deep)
+// BACKWARD CHAINING QUERY HIERARCHY
 // ========================================================================
 
-// Level 1: Top-level goal — is this loan approvable?
+// Level 1: Top-level goal
 query isLoanApproved(Long $clientId)
     hasValidLoanPeriod($clientId; ) and
     hasStableEmployment($clientId; ) and
     hasSufficientIncome($clientId; ) and
-    hasAcceptableRisk($clientId; )
+    hasAcceptableRisk($clientId; ) and
+    hasNoDefaultedLoans($clientId; ) and
+    hasNoSeriousDelinquencies($clientId; )
 end
 
 // ========================================================================
@@ -62,14 +80,12 @@ query hasValidLoanPeriod(Long $clientId)
     withinMaximumPeriod($clientId; )
 end
 
-// Level 3: Minimum period check (3 months)
 query meetsMinimumPeriod(Long $clientId)
-    LoanRequest(clientId == $clientId, numberOfInstallments >= 3)
+    LoanRequestFact(clientId == $clientId, numberOfInstallments >= 3)
 end
 
-// Level 3: Maximum period check (360 months = 30 years)
 query withinMaximumPeriod(Long $clientId)
-    LoanRequest(clientId == $clientId, numberOfInstallments <= 360)
+    LoanRequestFact(clientId == $clientId, numberOfInstallments <= 360)
 end
 
 // ========================================================================
@@ -81,35 +97,30 @@ query hasStableEmployment(Long $clientId)
     employmentCoversFullTerm($clientId; )
 end
 
-// Level 3: Client must be employed
 query isNotUnemployed(Long $clientId)
-    $req: LoanRequest(clientId == $clientId, employmentStatus != null)
+    $req: LoanRequestFact(clientId == $clientId, employmentStatus != null)
     eval(!$req.getEmploymentStatus().toUpperCase().equals("UNEMPLOYED"))
 end
 
-// Level 3: Contract start date must be provided when employed
 query hasValidContractStartDate(Long $clientId)
-    $req: LoanRequest(clientId == $clientId)
+    $req: LoanRequestFact(clientId == $clientId)
     eval($req.getEmploymentStatus().toUpperCase().equals("UNEMPLOYED")
          || $req.getContractStartDate() != null)
 end
 
-// Level 3: Contract must cover the full loan repayment period
 query employmentCoversFullTerm(Long $clientId)
     indefiniteEmployment($clientId; )
     or
     fixedTermEmploymentCoversLoan($clientId; )
 end
 
-// Level 4: Indefinite employment covers the full term by definition
 query indefiniteEmployment(Long $clientId)
-    $req: LoanRequest(clientId == $clientId, employmentStatus != null)
+    $req: LoanRequestFact(clientId == $clientId, employmentStatus != null)
     eval(!$req.getEmploymentStatus().toUpperCase().equals("FIXED_TERM"))
 end
 
-// Level 4: Fixed-term contract must extend at least until the loan end date
 query fixedTermEmploymentCoversLoan(Long $clientId)
-    $req: LoanRequest(clientId == $clientId, employmentStatus != null, $inst: numberOfInstallments)
+    $req: LoanRequestFact(clientId == $clientId, employmentStatus != null, $inst: numberOfInstallments)
     eval($req.getEmploymentStatus().toUpperCase().equals("FIXED_TERM") &&
          $req.getContractEndDate() != null &&
          !$req.getContractEndDate().isBefore(LocalDate.now().plusMonths((long) $inst)))
@@ -123,39 +134,71 @@ query hasSufficientIncome(Long $clientId)
     totalDebtIsAcceptable($clientId; )
 end
 
-// Level 3: Monthly payment must not exceed 70% of income
 query paymentIsAffordable(Long $clientId)
-    $req: LoanRequest(clientId == $clientId, $amount: loanAmount, $inst: numberOfInstallments)
+    $req: LoanRequestFact(clientId == $clientId, $amount: loanAmount, $inst: numberOfInstallments)
     $profile: ClientFinancialProfile(clientId == $clientId, $income: monthlyIncome)
     eval($income > 0 && computeMonthlyPayment($amount, $inst) <= $income * 0.7)
 end
 
-// Level 3: Total debt (new payment + existing loan payments) ≤ 50% of income
 query totalDebtIsAcceptable(Long $clientId)
-    $req: LoanRequest(clientId == $clientId, $amount: loanAmount, $inst: numberOfInstallments)
+    $req: LoanRequestFact(clientId == $clientId, $amount: loanAmount, $inst: numberOfInstallments)
     $profile: ClientFinancialProfile(clientId == $clientId, $income: monthlyIncome, $existingPayments: totalExistingLoanPayments)
-    eval($income > 0 && (computeMonthlyPayment($amount, $inst) + $existingPayments) / $income <= 0.5)
+    eval($income > 0 &&
+         (computeMonthlyPayment($amount, $inst) + $existingPayments) / $income <= 0.5)
 end
 
 // ========================================================================
 // Level 2: Risk assessment
 // ========================================================================
 query hasAcceptableRisk(Long $clientId)
-    $req: LoanRequest(clientId == $clientId)
+    $req: LoanRequestFact(clientId == $clientId)
     $profile: ClientFinancialProfile(clientId == $clientId)
-    eval(computeRiskScore($req, $profile) < 50.0)
+    eval(computeRiskScore($req, $profile) < 50.0) and
+    notExcessiveExistingLoans($clientId; )
+end
+
+// Level 3: Check that the client doesn't have too many active loans 
+// (3 or more active loans is excessive)
+query notExcessiveExistingLoans(Long $clientId)
+    not hasThreeOrMoreActiveLoans($clientId; )
+end
+
+query hasThreeOrMoreActiveLoans(Long $clientId)
+    $loan1: LoanFact(clientId == $clientId, status == "ACTIVE")
+    $loan2: LoanFact(clientId == $clientId, status == "ACTIVE", this != $loan1)
+    $loan3: LoanFact(clientId == $clientId, status == "ACTIVE", this != $loan1, this != $loan2)
 end
 
 // ========================================================================
-// RULES — triggered by backward chaining query results
-// These capture the backward chaining conclusions into a LoanAssessment
-// fact that the Java code can read.
+// Level 2: Defaulted loan checks
 // ========================================================================
+query hasNoDefaultedLoans(Long $clientId)
+    not hasAnyDefaultedLoan($clientId; )
+end
 
+query hasAnyDefaultedLoan(Long $clientId)
+    LoanFact(clientId == $clientId, status == "DEFAULTED")
+end
+
+// ========================================================================
+// Level 2: Delinquency checks — late or missed payments
+// ========================================================================
+query hasNoSeriousDelinquencies(Long $clientId)
+    not hasAnyDelinquentRepayment($clientId; )
+end
+
+query hasAnyDelinquentRepayment(Long $clientId)
+    $loan: LoanFact(clientId == $clientId, $loanId: loanId)
+    $rp: LoanRepaymentFact(loanId == $loanId, status == "LATE" || status == "MISSED")
+end
+
+// ========================================================================
+// RULE — initializes the LoanAssessment fact with computed financial metrics
+// ========================================================================
 rule "Initialize Loan Assessment"
     salience 100
     when
-        $req: LoanRequest($clientId: clientId, $amount: loanAmount, $inst: numberOfInstallments)
+        $req: LoanRequestFact($clientId: clientId, $amount: loanAmount, $inst: numberOfInstallments)
         $profile: ClientFinancialProfile(clientId == $clientId)
         not LoanAssessment(clientId == $clientId)
     then
@@ -171,74 +214,4 @@ rule "Initialize Loan Assessment"
         assessment.setRiskLevel(level);
         assessment.setDebtToIncomeRatio(Math.round(dti * 10000.0) / 10000.0);
         insert(assessment);
-end
-
-rule "Loan Approved"
-    no-loop true
-    lock-on-active true
-    when
-        $assessment: LoanAssessment(clientId == $clientId,
-            reasons excludes "Loan approved")
-        isLoanApproved($clientId; )
-    then
-        modify($assessment) {
-            setApproved(true),
-            addReason("Loan approved")
-        }
-end
-
-rule "Reject Invalid Loan Period"
-    no-loop true
-    lock-on-active true
-    when
-        $assessment: LoanAssessment(clientId == $clientId,
-            reasons excludes "Loan period must be between 3 and 360 months")
-        not hasValidLoanPeriod($clientId; )
-    then
-        modify($assessment) {
-            setApproved(false),
-            addReason("Loan period must be between 3 and 360 months")
-        }
-end
-
-rule "Reject Unstable Employment"
-    no-loop true
-    lock-on-active true
-    when
-        $assessment: LoanAssessment(clientId == $clientId,
-            reasons excludes "Client does not have stable employment for the loan duration")
-        not hasStableEmployment($clientId; )
-    then
-        modify($assessment) {
-            setApproved(false),
-            addReason("Client does not have stable employment for the loan duration")
-        }
-end
-
-rule "Reject Insufficient Income"
-    no-loop true
-    lock-on-active true
-    when
-        $assessment: LoanAssessment(clientId == $clientId,
-            reasons excludes "Insufficient income to cover loan payments")
-        not hasSufficientIncome($clientId; )
-    then
-        modify($assessment) {
-            setApproved(false),
-            addReason("Insufficient income to cover loan payments")
-        }
-end
-
-rule "Reject Unacceptable Risk"
-    no-loop true
-    lock-on-active true
-    when
-        $assessment: LoanAssessment(clientId == $clientId,
-            reasons excludes "Overall risk score is too high for loan approval")
-        not hasAcceptableRisk($clientId; )
-    then
-        modify($assessment) {
-            setApproved(false),
-            addReason("Overall risk score is too high for loan approval")
-        }
 end

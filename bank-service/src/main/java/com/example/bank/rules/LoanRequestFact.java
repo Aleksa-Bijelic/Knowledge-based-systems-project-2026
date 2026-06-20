@@ -2,7 +2,7 @@ package com.example.bank.rules;
 
 import java.time.LocalDate;
 
-public class LoanRequest {
+public class LoanRequestFact {
 
     private Long clientId;
     private double loanAmount;
@@ -11,12 +11,12 @@ public class LoanRequest {
     private LocalDate contractStartDate;
     private LocalDate contractEndDate;
 
-    public LoanRequest() {
+    public LoanRequestFact() {
     }
 
-    public LoanRequest(Long clientId, double loanAmount, int numberOfInstallments,
-                       String employmentStatus, LocalDate contractStartDate,
-                       LocalDate contractEndDate) {
+    public LoanRequestFact(Long clientId, double loanAmount, int numberOfInstallments,
+                           String employmentStatus, LocalDate contractStartDate,
+                           LocalDate contractEndDate) {
         this.clientId = clientId;
         this.loanAmount = loanAmount;
         this.numberOfInstallments = numberOfInstallments;

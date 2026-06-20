@@ -15,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @RestController
@@ -59,6 +60,7 @@ public class AuthController {
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setRole("ROLE_CLIENT");
+        user.setDateOfBirth(request.getDateOfBirth());
         user.setCreatedAt(LocalDateTime.now());
         BankUser saved = bankUserRepository.save(user);
 

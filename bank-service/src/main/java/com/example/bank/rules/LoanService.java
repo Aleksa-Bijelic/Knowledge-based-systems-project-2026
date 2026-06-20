@@ -2,10 +2,16 @@ package com.example.bank.rules;
 
 import com.example.bank.model.BankAccount;
 import com.example.bank.model.BankUser;
+import com.example.bank.model.Loan;
+import com.example.bank.model.LoanRepayment;
+import com.example.bank.model.LoanRequest;
 import com.example.bank.model.PackageAccount;
 import com.example.bank.model.Transaction;
 import com.example.bank.repository.BankAccountRepository;
 import com.example.bank.repository.BankUserRepository;
+import com.example.bank.repository.LoanRepaymentRepository;
+import com.example.bank.repository.LoanRepository;
+import com.example.bank.repository.LoanRequestRepository;
 import com.example.bank.repository.PackageAccountRepository;
 import com.example.bank.repository.TransactionRepository;
 import org.kie.api.KieServices;
@@ -14,6 +20,7 @@ import org.kie.api.builder.KieFileSystem;
 import org.kie.api.builder.Results;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
+import org.kie.api.runtime.rule.QueryResults;
 import org.kie.internal.io.ResourceFactory;
 import org.springframework.stereotype.Service;
 
@@ -34,15 +41,24 @@ public class LoanService {
     private final PackageAccountRepository packageAccountRepository;
     private final BankAccountRepository bankAccountRepository;
     private final TransactionRepository transactionRepository;
+    private final LoanRepository loanRepository;
+    private final LoanRepaymentRepository loanRepaymentRepository;
+    private final LoanRequestRepository loanRequestRepository;
 
     public LoanService(BankUserRepository bankUserRepository,
                        PackageAccountRepository packageAccountRepository,
                        BankAccountRepository bankAccountRepository,
-                       TransactionRepository transactionRepository) {
+                       TransactionRepository transactionRepository,
+                       LoanRepository loanRepository,
+                       LoanRepaymentRepository loanRepaymentRepository,
+                       LoanRequestRepository loanRequestRepository) {
         this.bankUserRepository = bankUserRepository;
         this.packageAccountRepository = packageAccountRepository;
         this.bankAccountRepository = bankAccountRepository;
         this.transactionRepository = transactionRepository;
+        this.loanRepository = loanRepository;
+        this.loanRepaymentRepository = loanRepaymentRepository;
+        this.loanRequestRepository = loanRequestRepository;
 
         KieServices kieServices = KieServices.Factory.get();
         KieFileSystem kieFileSystem = kieServices.newKieFileSystem();
@@ -59,13 +75,40 @@ public class LoanService {
         this.kieContainer = kieServices.newKieContainer(kieServices.getRepository().getDefaultReleaseId());
     }
 
-    public LoanAssessment evaluateLoanRequest(LoanRequest loanRequest) {
+    public LoanAssessment evaluateLoanRequest(LoanRequestFact loanRequest) {
         ClientFinancialProfile profile = buildFinancialProfile(loanRequest.getClientId());
 
         KieSession kieSession = kieContainer.newKieSession();
         try {
             kieSession.insert(loanRequest);
             kieSession.insert(profile);
+
+            // Insert existing loan data as facts for DRL reasoning
+            List<Loan> activeLoans = loanRepository.findByClientId(loanRequest.getClientId());
+            for (Loan loan : activeLoans) {
+                LoanFact fact = new LoanFact(
+                    loan.getId(),
+                    loan.getClientId(),
+                    loan.getMonthlyPayment(),
+                    loan.getRemainingBalance(),
+                    loan.getStatus(),
+                    loan.getNumberOfInstallments()
+                );
+                kieSession.insert(fact);
+
+                List<LoanRepayment> repayments = loanRepaymentRepository.findByLoanId(loan.getId());
+                for (LoanRepayment rp : repayments) {
+                    LoanRepaymentFact rpFact = new LoanRepaymentFact(
+                        rp.getId(),
+                        rp.getLoanId(),
+                        rp.getAmount(),
+                        rp.getDueDate(),
+                        rp.getPaidDate(),
+                        rp.getStatus()
+                    );
+                    kieSession.insert(rpFact);
+                }
+            }
 
             kieSession.fireAllRules();
 
@@ -79,10 +122,85 @@ public class LoanService {
             }
             LoanAssessment assessment = (LoanAssessment) assessments.iterator().next();
 
+            boolean approved = queryExists(kieSession, "isLoanApproved",
+                    new Object[]{assessment.getClientId()});
+
+            if (approved) {
+                assessment.setApproved(true);
+                assessment.addReason("Recommendation: Approve loan");
+            } else {
+                assessment.setApproved(false);
+                if (!queryExists(kieSession, "hasValidLoanPeriod",
+                        new Object[]{assessment.getClientId()})) {
+                    assessment.addReason("Rejection reason: Loan period must be between 3 and 360 months");
+                }
+                if (!queryExists(kieSession, "hasStableEmployment",
+                        new Object[]{assessment.getClientId()})) {
+                    assessment.addReason("Rejection reason: Client does not have stable employment for the loan duration");
+                }
+                if (!queryExists(kieSession, "hasSufficientIncome",
+                        new Object[]{assessment.getClientId()})) {
+                    assessment.addReason("Rejection reason: Insufficient income to cover loan payments");
+                }
+                if (!queryExists(kieSession, "hasAcceptableRisk",
+                        new Object[]{assessment.getClientId()})) {
+                    assessment.addReason("Rejection reason: Overall risk score is too high for loan approval");
+                }
+            }
+
             return assessment;
         } finally {
             kieSession.dispose();
         }
+    }
+
+    public LoanRequest saveLoanRequest(Long clientId, double loanAmount, int numberOfInstallments,
+                                        String employmentStatus, LocalDate contractStartDate,
+                                        LocalDate contractEndDate, LoanAssessment assessment) {
+        LoanRequest entity = new LoanRequest();
+        entity.setClientId(clientId);
+        entity.setLoanAmount(loanAmount);
+        entity.setNumberOfInstallments(numberOfInstallments);
+        entity.setEmploymentStatus(employmentStatus);
+        entity.setContractStartDate(contractStartDate);
+        entity.setContractEndDate(contractEndDate);
+        entity.setStatus("ASSESSED");
+        entity.setRiskScore(assessment.getRiskScore());
+        entity.setRiskLevel(assessment.getRiskLevel());
+        entity.setMonthlyPayment(assessment.getMonthlyPayment());
+        entity.setDebtToIncomeRatio(assessment.getDebtToIncomeRatio());
+        entity.setSystemRecommendation(assessment.isApproved() ? "APPROVE" : "REJECT");
+        entity.setCreatedAt(LocalDateTime.now());
+        return loanRequestRepository.save(entity);
+    }
+
+    public LoanRequest saveOfficerDecision(Long requestId, String decision, String officerUsername) {
+        LoanRequest entity = loanRequestRepository.findById(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("Loan request not found: " + requestId));
+        entity.setOfficerDecision(decision);
+        entity.setOfficerUsername(officerUsername);
+        entity.setStatus(decision);
+
+        loanRequestRepository.save(entity);
+
+        if ("APPROVED".equals(decision)) {
+            Loan loan = new Loan();
+            loan.setClientId(entity.getClientId());
+            loan.setRequestId(entity.getId());
+            loan.setLoanAmount(entity.getLoanAmount());
+            loan.setNumberOfInstallments(entity.getNumberOfInstallments());
+            loan.setMonthlyPayment(entity.getMonthlyPayment());
+            loan.setInterestRate(0.05);
+            loan.setRemainingBalance(entity.getLoanAmount());
+            loan.setStatus("ACTIVE");
+            loan.setOfficerDecision("APPROVED");
+            loan.setOfficerUsername(officerUsername);
+            loan.setApprovedAt(LocalDateTime.now());
+            loan.setCreatedAt(LocalDateTime.now());
+            loanRepository.save(loan);
+        }
+
+        return entity;
     }
 
     private ClientFinancialProfile buildFinancialProfile(Long clientId) {
@@ -108,54 +226,34 @@ public class LoanService {
             }
         }
 
-        List<Transaction> clientTransactions = new ArrayList<>();
+        List<Transaction> allTransactions = new ArrayList<>();
         for (String accountNumber : clientAccountNumbers) {
-            clientTransactions.addAll(transactionRepository.findBySenderAccountNumber(accountNumber));
-            clientTransactions.addAll(transactionRepository.findByReceiverAccountNumber(accountNumber));
+            allTransactions.addAll(transactionRepository.findBySenderAccountNumber(accountNumber));
+            allTransactions.addAll(transactionRepository.findByReceiverAccountNumber(accountNumber));
         }
 
-        Set<Long> seenTransactionIds = new HashSet<>();
+        Set<Long> seenIds = new HashSet<>();
         List<Transaction> uniqueTransactions = new ArrayList<>();
-        for (Transaction t : clientTransactions) {
-            if (seenTransactionIds.add(t.getId())) {
+        for (Transaction t : allTransactions) {
+            if (seenIds.add(t.getId())) {
                 uniqueTransactions.add(t);
             }
         }
 
         double monthlyIncome = estimateMonthlyIncome(uniqueTransactions);
-        double existingLoanPayments = 0.0;
-        int existingLoanCount = 0;
-        double totalExistingLoanAmount = 0.0;
 
-        for (Transaction t : uniqueTransactions) {
-            if (t.getDescription() != null && t.getDescription().toLowerCase().contains("loan")) {
-                existingLoanCount++;
-                if (t.getSenderAccountNumber() != null
-                    && clientAccountNumbers.contains(t.getSenderAccountNumber())
-                    && t.getStatus().equals("COMPLETED")) {
-                    existingLoanPayments += t.getAmount();
-                }
-            }
-        }
-
-        boolean hasGoodRepaymentHistory = false;
-        long completedLoanPayments = uniqueTransactions.stream()
-                .filter(t -> t.getDescription() != null
-                        && t.getDescription().toLowerCase().contains("loan")
-                        && t.getSenderAccountNumber() != null
-                        && clientAccountNumbers.contains(t.getSenderAccountNumber())
-                        && t.getStatus().equals("COMPLETED"))
-                .count();
-        hasGoodRepaymentHistory = completedLoanPayments >= 3;
+        List<Loan> activeLoans = loanRepository.findByClientIdAndStatus(clientId, "ACTIVE");
+        int existingLoanCount = activeLoans.size();
+        double totalExistingLoanPayments = activeLoans.stream()
+                .mapToDouble(Loan::getMonthlyPayment)
+                .sum();
 
         return new ClientFinancialProfile(
                 clientId,
                 age,
                 monthlyIncome,
-                existingLoanPayments,
-                hasGoodRepaymentHistory,
+                totalExistingLoanPayments,
                 existingLoanCount,
-                totalExistingLoanAmount,
                 totalBalance
         );
     }
@@ -173,5 +271,10 @@ public class LoanService {
         }
 
         return totalReceived / 6.0;
+    }
+
+    private boolean queryExists(KieSession kieSession, String queryName, Object[] args) {
+        QueryResults results = kieSession.getQueryResults(queryName, args);
+        return results != null && results.size() > 0;
     }
 }

@@ -1,4 +1,6 @@
-import { FiCheckCircle, FiXCircle, FiAlertTriangle, FiInfo } from 'react-icons/fi';
+import { useState } from 'react';
+import { FiCheckCircle, FiXCircle, FiAlertTriangle, FiInfo, FiThumbsUp, FiThumbsDown } from 'react-icons/fi';
+import { request, authHeader } from '../api';
 
 function RiskBadge({ level }) {
   const config = {
@@ -14,27 +16,58 @@ function RiskBadge({ level }) {
   );
 }
 
-function LoanAssessmentResult({ result }) {
+function LoanAssessmentResult({ result, token, onDecisionMade }) {
+  const [decisionLoading, setDecisionLoading] = useState(false);
+  const [decisionError, setDecisionError] = useState(null);
+  const [finalDecision, setFinalDecision] = useState(null);
+
   if (!result) return null;
 
-  const { approved, reasons, riskScore, riskLevel, monthlyPayment, debtToIncomeRatio } = result;
+  const { requestId, clientId, approved, reasons, riskScore, riskLevel, monthlyPayment, debtToIncomeRatio } = result;
+
+  const handleDecision = async (decision) => {
+    setDecisionLoading(true);
+    setDecisionError(null);
+    try {
+      await request('/loans/decision', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeader(token),
+        },
+        body: JSON.stringify({
+          requestId: requestId,
+          officerDecision: decision,
+          officerUsername: 'officer',
+        }),
+      });
+      setFinalDecision(decision);
+      if (onDecisionMade) onDecisionMade(decision);
+    } catch (err) {
+      setDecisionError(err.message);
+    } finally {
+      setDecisionLoading(false);
+    }
+  };
 
   return (
-    <div className={`assessment-result ${approved ? 'approved' : 'denied'}`}>
-      <div className="assessment-header">
+    <div className="assessment-result">
+      {/* System Recommendation Banner */}
+      <div className={`assessment-header ${approved ? 'recommended' : 'not-recommended'}`}>
         <div className={`assessment-status-icon ${approved ? 'status-approved' : 'status-denied'}`}>
           {approved ? <FiCheckCircle size={32} /> : <FiXCircle size={32} />}
         </div>
         <div>
-          <h3>{approved ? 'Loan Approved' : 'Loan Denied'}</h3>
+          <h3>System Recommendation: {approved ? 'Approve' : 'Reject'}</h3>
           <p className="assessment-subtitle">
             {approved
-              ? 'This loan request meets the bank requirements.'
-              : 'This loan request does not meet the bank requirements.'}
+              ? 'Based on the rule-based analysis, this loan request meets the bank criteria.'
+              : 'Based on the rule-based analysis, this loan request does not meet the bank criteria.'}
           </p>
         </div>
       </div>
 
+      {/* Financial Metrics */}
       <div className="assessment-metrics">
         <div className="metric-card">
           <div className="metric-label">Risk Level</div>
@@ -54,6 +87,7 @@ function LoanAssessmentResult({ result }) {
         </div>
       </div>
 
+      {/* Assessment Reasons */}
       {reasons && reasons.length > 0 && (
         <div className="assessment-reasons">
           <div className="reasons-header">
@@ -62,11 +96,50 @@ function LoanAssessmentResult({ result }) {
           </div>
           <ul>
             {reasons.map((reason, index) => (
-              <li key={index} className={approved ? 'reason-positive' : 'reason-negative'}>
+              <li key={index} className={reason.startsWith('Recommendation') ? 'reason-positive' : 'reason-negative'}>
                 {reason}
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Officer Final Decision */}
+      {!finalDecision && (
+        <div className="officer-decision-section">
+          <h4>Officer Final Decision</h4>
+          <p className="card-subtitle">
+            The rule-based system provides a recommendation above. As a bank officer, you make the final decision.
+          </p>
+          <div className="officer-decision-actions">
+            <button
+              className="btn btn-success"
+              onClick={() => handleDecision('APPROVED')}
+              disabled={decisionLoading}
+            >
+              <FiThumbsUp className="icon" />
+              {decisionLoading ? 'Processing...' : 'Approve Loan'}
+            </button>
+            <button
+              className="btn btn-danger"
+              onClick={() => handleDecision('REJECTED')}
+              disabled={decisionLoading}
+            >
+              <FiThumbsDown className="icon" />
+              {decisionLoading ? 'Processing...' : 'Reject Loan'}
+            </button>
+          </div>
+          {decisionError && <div className="error">{decisionError}</div>}
+        </div>
+      )}
+
+      {finalDecision && (
+        <div className={`final-decision-banner ${finalDecision === 'APPROVED' ? 'final-approved' : 'final-rejected'}`}>
+          {finalDecision === 'APPROVED' ? <FiCheckCircle size={24} /> : <FiXCircle size={24} />}
+          <span>
+            <strong>Officer decision: {finalDecision === 'APPROVED' ? 'Loan Approved' : 'Loan Rejected'}</strong>
+            {' — This final decision has been recorded.'}
+          </span>
         </div>
       )}
     </div>

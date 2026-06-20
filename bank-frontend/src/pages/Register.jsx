@@ -9,6 +9,7 @@ function Register() {
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
@@ -27,6 +28,7 @@ function Register() {
           password,
           firstName,
           lastName,
+          dateOfBirth: dateOfBirth || null,
         }),
       });
       setMessage('Registration successful. Please login.');
@@ -58,6 +60,10 @@ function Register() {
         <div className="form-row">
           <label>Last Name</label>
           <input value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+        </div>
+        <div className="form-row">
+          <label>Date of Birth</label>
+          <input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} required />
         </div>
         <div className="form-row">
           <label>Password</label>

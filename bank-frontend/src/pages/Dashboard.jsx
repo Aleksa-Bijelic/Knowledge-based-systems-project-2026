@@ -197,7 +197,7 @@ function OfficerDashboard({ token, username }) {
       {assessmentResult && (
         <section className="card">
           <h3>Assessment Result</h3>
-          <LoanAssessmentResult result={assessmentResult} />
+          <LoanAssessmentResult result={assessmentResult} token={token} />
         </section>
       )}
     </div>

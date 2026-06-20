@@ -75,7 +75,8 @@ function LoanRequestForm({ token, onAssessmentResult }) {
     }
   };
 
-  const showContractDates = employmentStatus === 'FIXED_TERM';
+  const showEndDate = employmentStatus === 'FIXED_TERM';
+  const isEmployed = employmentStatus !== 'UNEMPLOYED';
 
   return (
     <form className="loan-form" onSubmit={handleSubmit}>
@@ -104,7 +105,7 @@ function LoanRequestForm({ token, onAssessmentResult }) {
           <input
             type="number"
             min="1"
-            step="100"
+            step="1"
             value={loanAmount}
             onChange={(e) => setLoanAmount(e.target.value)}
             placeholder="e.g. 500000"
@@ -138,7 +139,7 @@ function LoanRequestForm({ token, onAssessmentResult }) {
         </select>
       </div>
 
-      {showContractDates && (
+      {isEmployed && (
         <div className="form-grid">
           <div className="form-row">
             <label>Contract start date</label>
@@ -149,15 +150,17 @@ function LoanRequestForm({ token, onAssessmentResult }) {
               required
             />
           </div>
-          <div className="form-row">
-            <label>Contract end date</label>
-            <input
-              type="date"
-              value={contractEndDate}
-              onChange={(e) => setContractEndDate(e.target.value)}
-              required
-            />
-          </div>
+          {showEndDate && (
+            <div className="form-row">
+              <label>Contract end date</label>
+              <input
+                type="date"
+                value={contractEndDate}
+                onChange={(e) => setContractEndDate(e.target.value)}
+                required
+              />
+            </div>
+          )}
         </div>
       )}
 
