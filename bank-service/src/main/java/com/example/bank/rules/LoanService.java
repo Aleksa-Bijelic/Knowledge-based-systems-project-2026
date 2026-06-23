@@ -236,7 +236,6 @@ public class LoanService {
         double monthlyIncome = estimateMonthlyIncome(uniqueTransactions);
 
         List<Loan> activeLoans = loanRepository.findByClientIdAndStatus(clientId, "ACTIVE");
-        int existingLoanCount = activeLoans.size();
         double totalExistingLoanPayments = activeLoans.stream()
                 .mapToDouble(Loan::getMonthlyPayment)
                 .sum();
@@ -246,7 +245,6 @@ public class LoanService {
                 age,
                 monthlyIncome,
                 totalExistingLoanPayments,
-                existingLoanCount,
                 totalBalance
         );
     }

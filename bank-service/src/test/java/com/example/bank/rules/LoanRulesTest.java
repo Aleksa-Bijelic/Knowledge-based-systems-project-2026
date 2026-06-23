@@ -56,7 +56,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 500000.0, 60, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 34, 150000.0, 0.0, 0, 300000.0));
+            ks.insert(new ClientFinancialProfile(1L, 34, 150000.0, 0.0, 300000.0));
 
             ks.fireAllRules();
 
@@ -84,7 +84,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 1, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 0, 100000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 100000.0));
 
             ks.fireAllRules();
 
@@ -104,7 +104,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 480, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 0, 100000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 100000.0));
 
             ks.fireAllRules();
 
@@ -122,7 +122,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 10000.0, 3, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 0, 100000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 100000.0));
 
             ks.fireAllRules();
 
@@ -140,7 +140,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 10000.0, 360, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 0, 100000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 100000.0));
 
             ks.fireAllRules();
 
@@ -160,7 +160,7 @@ class LoanRulesTest {
         KieSession ks = createSession();
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 60, "UNEMPLOYED", null, null));
-            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 0, 100000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 100000.0));
 
             ks.fireAllRules();
 
@@ -178,7 +178,7 @@ class LoanRulesTest {
         KieSession ks = createSession();
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 60, "INDEFINITE", null, null));
-            ks.insert(new ClientFinancialProfile(1L, 30, 100000.0, 0.0, 0, 500000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 100000.0, 0.0, 500000.0));
 
             ks.fireAllRules();
 
@@ -196,7 +196,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 60, "INDEFINITE",
                     LocalDate.now().minusMonths(2), null));
-            ks.insert(new ClientFinancialProfile(1L, 30, 100000.0, 0.0, 0, 500000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 100000.0, 0.0, 500000.0));
 
             ks.fireAllRules();
 
@@ -213,7 +213,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 60, "FIXED_TERM",
                     LocalDate.of(2020, 1, 1), LocalDate.of(2024, 6, 1)));
-            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 0, 100000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 100000.0));
 
             ks.fireAllRules();
 
@@ -231,7 +231,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 60, "FIXED_TERM",
                     LocalDate.of(2020, 1, 1), LocalDate.now().plusYears(10)));
-            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 0, 100000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 100000.0));
 
             ks.fireAllRules();
 
@@ -248,7 +248,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 120, "FIXED_TERM",
                     LocalDate.of(2020, 1, 1), LocalDate.now().plusMonths(24)));
-            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 0, 100000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 100000.0));
 
             ks.fireAllRules();
 
@@ -265,7 +265,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 120, "FIXED_TERM",
                     LocalDate.of(2020, 1, 1), LocalDate.now().plusMonths(23)));
-            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 0, 100000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 100000.0));
 
             ks.fireAllRules();
 
@@ -285,7 +285,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 10000000.0, 60, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 0, 100000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 100000.0));
 
             ks.fireAllRules();
 
@@ -306,7 +306,7 @@ class LoanRulesTest {
             // (5661 + 45000)/50000 = 1.013 > 0.4 => fail
             ks.insert(new LoanRequestFact(1L, 300000.0, 60, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 45000.0, 2, 100000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 45000.0, 100000.0));
 
             ks.fireAllRules();
 
@@ -325,7 +325,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 60, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 30, 0.0, 0.0, 0, 100000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 0.0, 0.0, 100000.0));
 
             ks.fireAllRules();
 
@@ -346,7 +346,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 240, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 68, 100000.0, 0.0, 0, 500000.0));
+            ks.insert(new ClientFinancialProfile(1L, 68, 100000.0, 0.0, 500000.0));
 
             ks.fireAllRules();
 
@@ -363,7 +363,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 240, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 68, 100000.0, 15000.0, 4, 500000.0));
+            ks.insert(new ClientFinancialProfile(1L, 68, 100000.0, 15000.0, 500000.0));
             // Insert 4 active LoanFacts so the active loan risk factor fires
             ks.insert(new LoanFact(101L, 1L, 5000.0, 100000.0, "ACTIVE", 24));
             ks.insert(new LoanFact(102L, 1L, 6000.0, 80000.0, "ACTIVE", 36));
@@ -385,7 +385,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 60, "FIXED_TERM",
                     LocalDate.of(2020, 1, 1), LocalDate.now().plusYears(10)));
-            ks.insert(new ClientFinancialProfile(1L, 30, 100000.0, 0.0, 0, 500000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 100000.0, 0.0, 500000.0));
 
             ks.fireAllRules();
 
@@ -402,7 +402,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 60, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 30, 100000.0, 0.0, 0, 500000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 100000.0, 0.0, 500000.0));
 
             ks.fireAllRules();
 
@@ -419,7 +419,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 60, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 30, 100000.0, 0.0, 0, 5000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 100000.0, 0.0, 5000.0));
 
             ks.fireAllRules();
 
@@ -439,7 +439,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 60, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 34, 150000.0, 0.0, 0, 300000.0));
+            ks.insert(new ClientFinancialProfile(1L, 34, 150000.0, 0.0, 300000.0));
             ks.insert(new LoanFact(101L, 1L, 10000.0, 500000.0, "DEFAULTED", 60));
 
             ks.fireAllRules();
@@ -459,7 +459,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 60, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 34, 150000.0, 5000.0, 1, 300000.0));
+            ks.insert(new ClientFinancialProfile(1L, 34, 150000.0, 5000.0, 300000.0));
             ks.insert(new LoanFact(101L, 1L, 5000.0, 200000.0, "ACTIVE", 48));
 
             ks.fireAllRules();
@@ -478,7 +478,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 60, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 34, 150000.0, 5000.0, 1, 300000.0));
+            ks.insert(new ClientFinancialProfile(1L, 34, 150000.0, 5000.0, 300000.0));
             ks.insert(new LoanFact(101L, 1L, 5000.0, 200000.0, "ACTIVE", 48));
             ks.insert(new LoanRepaymentFact(1001L, 101L, 5000.0,
                     LocalDate.now().minusMonths(1).withDayOfMonth(15),
@@ -501,7 +501,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 60, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 34, 150000.0, 5000.0, 1, 300000.0));
+            ks.insert(new ClientFinancialProfile(1L, 34, 150000.0, 5000.0, 300000.0));
             ks.insert(new LoanFact(101L, 1L, 5000.0, 200000.0, "ACTIVE", 48));
             ks.insert(new LoanRepaymentFact(1001L, 101L, 5000.0,
                     LocalDate.now().minusMonths(1).withDayOfMonth(15),
@@ -526,7 +526,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 60, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 34, 150000.0, 15000.0, 3, 300000.0));
+            ks.insert(new ClientFinancialProfile(1L, 34, 150000.0, 15000.0, 300000.0));
             ks.insert(new LoanFact(101L, 1L, 5000.0, 100000.0, "ACTIVE", 24));
             ks.insert(new LoanFact(102L, 1L, 6000.0, 80000.0, "ACTIVE", 36));
             ks.insert(new LoanFact(103L, 1L, 4000.0, 50000.0, "ACTIVE", 12));
@@ -548,7 +548,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 100000.0, 60, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 34, 150000.0, 10000.0, 2, 300000.0));
+            ks.insert(new ClientFinancialProfile(1L, 34, 150000.0, 10000.0, 300000.0));
             ks.insert(new LoanFact(101L, 1L, 5000.0, 100000.0, "ACTIVE", 24));
             ks.insert(new LoanFact(102L, 1L, 5000.0, 80000.0, "ACTIVE", 36));
 
@@ -571,7 +571,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 9999999.0, 400, "UNEMPLOYED",
                     null, null));
-            ks.insert(new ClientFinancialProfile(1L, 30, 5000.0, 2000.0, 1, 1000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 5000.0, 2000.0, 1000.0));
 
             ks.fireAllRules();
 
@@ -591,7 +591,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 500000.0, 60, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 34, 150000.0, 5000.0, 1, 300000.0));
+            ks.insert(new ClientFinancialProfile(1L, 34, 150000.0, 5000.0, 300000.0));
 
             ks.fireAllRules();
 
@@ -616,7 +616,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 1000.0, 3, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 30, 500000.0, 0.0, 0, 1000000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 500000.0, 0.0, 1000000.0));
 
             ks.fireAllRules();
 
@@ -635,7 +635,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 50000000.0, 360, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 30, 100000.0, 0.0, 0, 500000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 100000.0, 0.0, 500000.0));
 
             ks.fireAllRules();
 
@@ -655,7 +655,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 50000.0, 60, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 30, 100000.0, 0.0, 0, 500000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 100000.0, 0.0, 500000.0));
 
             ks.fireAllRules();
 
@@ -678,7 +678,7 @@ class LoanRulesTest {
             // Total: 30 - 5 = 25 => MEDIUM (15-35)
             ks.insert(new LoanRequestFact(1L, 100000.0, 130, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 68, 100000.0, 0.0, 0, 500000.0));
+            ks.insert(new ClientFinancialProfile(1L, 68, 100000.0, 0.0, 500000.0));
 
             ks.fireAllRules();
 
@@ -720,7 +720,7 @@ class LoanRulesTest {
             // Total: 30 + 15 - 5 = 40 -> HIGH!
             ks.insert(new LoanRequestFact(1L, 100000.0, 240, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 62, 100000.0, 0.0, 0, 500000.0));
+            ks.insert(new ClientFinancialProfile(1L, 62, 100000.0, 0.0, 500000.0));
 
             ks.fireAllRules();
 
@@ -744,7 +744,7 @@ class LoanRulesTest {
             // Total: 30 + 15 + 10 - 5 = 50 -> VERY_HIGH
             ks.insert(new LoanRequestFact(1L, 100000.0, 240, "FIXED_TERM",
                     LocalDate.of(2020, 1, 1), LocalDate.now().plusYears(10)));
-            ks.insert(new ClientFinancialProfile(1L, 68, 100000.0, 20000.0, 4, 500000.0));
+            ks.insert(new ClientFinancialProfile(1L, 68, 100000.0, 20000.0, 500000.0));
 
             ks.fireAllRules();
 
@@ -771,7 +771,7 @@ class LoanRulesTest {
             // Total: 15 -> MEDIUM
             ks.insert(new LoanRequestFact(1L, 100000.0, 240, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 60, 100000.0, 0.0, 0, 500000.0));
+            ks.insert(new ClientFinancialProfile(1L, 60, 100000.0, 0.0, 500000.0));
 
             ks.fireAllRules();
 
@@ -796,7 +796,7 @@ class LoanRulesTest {
             // Total: 0 -> LOW
             ks.insert(new LoanRequestFact(1L, 100000.0, 240, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 55, 100000.0, 0.0, 0, 500000.0));
+            ks.insert(new ClientFinancialProfile(1L, 55, 100000.0, 0.0, 500000.0));
 
             ks.fireAllRules();
 
@@ -824,7 +824,7 @@ class LoanRulesTest {
             // DTI = 2684/100000 = 0.0268 << 0.4
             ks.insert(new LoanRequestFact(1L, 500000.0, 360, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 30, 100000.0, 0.0, 0, 500000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 100000.0, 0.0, 500000.0));
 
             ks.fireAllRules();
 
@@ -845,7 +845,7 @@ class LoanRulesTest {
             // DTI = (2684 + 50000)/200000 = 0.2634 < 0.4
             ks.insert(new LoanRequestFact(1L, 500000.0, 360, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 30, 200000.0, 50000.0, 0, 500000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 200000.0, 50000.0, 500000.0));
 
             ks.fireAllRules();
 
@@ -866,7 +866,7 @@ class LoanRulesTest {
             // DTI = 188712/50000 = 3.77 > 0.4
             ks.insert(new LoanRequestFact(1L, 10000000.0, 60, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 0, 100000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 50000.0, 0.0, 100000.0));
 
             ks.fireAllRules();
 
@@ -887,7 +887,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 500000.0, 60, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 34, 150000.0, 5000.0, 1, 300000.0));
+            ks.insert(new ClientFinancialProfile(1L, 34, 150000.0, 5000.0, 300000.0));
             // Previous loan with perfect payment history
             ks.insert(new LoanFact(101L, 1L, 5000.0, 0.0, "PAID", 48));
             ks.insert(new LoanRepaymentFact(1001L, 101L, 5000.0,
@@ -916,7 +916,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 500000.0, 60, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 34, 150000.0, 0.0, 0, 300000.0));
+            ks.insert(new ClientFinancialProfile(1L, 34, 150000.0, 0.0, 300000.0));
             // Two previous paid loans with perfect history
             ks.insert(new LoanFact(101L, 1L, 5000.0, 0.0, "PAID", 48));
             ks.insert(new LoanFact(102L, 1L, 3000.0, 0.0, "PAID", 36));
@@ -948,7 +948,7 @@ class LoanRulesTest {
             // age = 65, inst = 120 => 65 + 10 = 75 -> passes
             ks.insert(new LoanRequestFact(1L, 100000.0, 120, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 65, 100000.0, 0.0, 0, 500000.0));
+            ks.insert(new ClientFinancialProfile(1L, 65, 100000.0, 0.0, 500000.0));
 
             ks.fireAllRules();
 
@@ -966,7 +966,7 @@ class LoanRulesTest {
             // age = 65, inst = 240 => 65 + 20 = 85 > 75 -> fails
             ks.insert(new LoanRequestFact(1L, 100000.0, 240, "INDEFINITE",
                     LocalDate.of(2020, 1, 1), null));
-            ks.insert(new ClientFinancialProfile(1L, 65, 100000.0, 0.0, 0, 500000.0));
+            ks.insert(new ClientFinancialProfile(1L, 65, 100000.0, 0.0, 500000.0));
 
             ks.fireAllRules();
 
@@ -986,7 +986,7 @@ class LoanRulesTest {
         try {
             ks.insert(new LoanRequestFact(1L, 9999999.0, 400, "UNEMPLOYED",
                     null, null));
-            ks.insert(new ClientFinancialProfile(1L, 30, 5000.0, 2000.0, 1, 1000.0));
+            ks.insert(new ClientFinancialProfile(1L, 30, 5000.0, 2000.0, 1000.0));
 
             ks.fireAllRules();
 

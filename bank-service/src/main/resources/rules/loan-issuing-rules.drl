@@ -8,6 +8,8 @@ import com.example.bank.rules.LoanRepaymentFact;
 import com.example.bank.rules.RiskFactorFact;
 import com.example.bank.rules.PositiveCreditHistoryFact;
 import com.example.bank.rules.DecisionReasonFact;
+import com.example.bank.rules.DebtToIncomeFact;
+import com.example.bank.rules.RiskThresholdFact;
 import java.time.LocalDate;
 import java.time.Period;
 
@@ -89,7 +91,7 @@ end
 query fixedTermEmploymentCoversSufficientPortion(Long $clientId)
     $req: LoanRequestFact(clientId == $clientId, employmentStatus != null, contractEndDate != null)
     eval($req.getEmploymentStatus().equals("FIXED_TERM") &&
-         ($req.getContractEndDate().isAfter(LocalDate.now().plusMonths($req.getNumberOfInstallments() / 2)) ||
+         ($req.getContractEndDate().isAfter(LocalDate.now().plusMonths(($req.getNumberOfInstallments() + 1) / 2)) ||
           !$req.getContractEndDate().isBefore(LocalDate.now().plusMonths(24))))
 end
 
@@ -98,10 +100,7 @@ query hasSufficientIncome(Long $clientId)
 end
 
 query hasAffordableDebtToIncome(Long $clientId)
-    $req: LoanRequestFact(clientId == $clientId, $amount: loanAmount, $inst: numberOfInstallments)
-    $profile: ClientFinancialProfile(clientId == $clientId, $income: monthlyIncome, $existingPayments: totalExistingLoanPayments)
-    eval($income > 0 &&
-         (computeMonthlyPayment($amount, $inst) + $existingPayments) / $income <= 0.4)
+    DebtToIncomeFact(clientId == $clientId, value <= 0.4)
 end
 
 query hasAcceptableRisk(Long $clientId)
@@ -110,7 +109,9 @@ query hasAcceptableRisk(Long $clientId)
 end
 
 query loanRiskScoreWithinLimit(Long $clientId)
-    LoanAssessment(clientId == $clientId, riskScore < 50.0)
+    $assessment: LoanAssessment(clientId == $clientId, $score: riskScore)
+    $threshold: RiskThresholdFact($t: threshold)
+    eval($score < $t)
 end
 
 query notExcessiveExistingLoans(Long $clientId)
@@ -156,7 +157,7 @@ end
 query agePlusLoanTermWithinLimit(Long $clientId)
     $profile: ClientFinancialProfile(clientId == $clientId, $age: age)
     $req: LoanRequestFact(clientId == $clientId, numberOfInstallments > 0)
-    eval($age + ($req.getNumberOfInstallments() / 12) <= 75)
+    eval($age * 12 + $req.getNumberOfInstallments() <= 75 * 12)
 end
 
 // ========================================================================
@@ -178,6 +179,15 @@ rule "Initialize Loan Assessment"
         assessment.setMonthlyPayment(payment);
         assessment.setDebtToIncomeRatio(Math.round(dti * 10000.0) / 10000.0);
         insert(assessment);
+        insert(new DebtToIncomeFact($clientId, dti));
+end
+
+rule "Initialize Risk Threshold"
+    salience 100
+    when
+        not RiskThresholdFact()
+    then
+        insert(new RiskThresholdFact(50.0));
 end
 
 // ========================================================================
@@ -269,6 +279,7 @@ rule "Positive Credit History - Risk Reduction"
         hasPreviousLoans($clientId; )
         not hasAnyDefaultedLoan($clientId; )
         not hasAnyDelinquentRepayment($clientId; )
+        exists (LoanFact(clientId == $clientId, $loanId: loanId) and LoanRepaymentFact(loanId == $loanId))
     then
         insert(new RiskFactorFact($clientId, -15.0, "Positive credit history - good repayment track record"));
         insert(new PositiveCreditHistoryFact($clientId));
@@ -295,6 +306,11 @@ end
 
 // ========================================================================
 // RISK LEVEL RULES — replace computeRiskLevel() function
+//
+// Safety: riskLevel == null ensures each assessment gets classified exactly
+// once. The Summation rule (salience 40) always fires before these rules
+// (salience 30), so riskScore is final when riskLevel is assigned.
+// No rule modifies riskScore after the summation, so no staleness risk.
 // ========================================================================
 
 rule "Risk Level LOW"
@@ -348,9 +364,7 @@ end
 rule "Decision Reason - DTI too high"
     salience 20
     when
-        $req: LoanRequestFact($clientId: clientId, $amount: loanAmount, $inst: numberOfInstallments)
-        $profile: ClientFinancialProfile(clientId == $clientId, $income: monthlyIncome, $existingPayments: totalExistingLoanPayments)
-        eval($income <= 0 || (computeMonthlyPayment($amount, $inst) + $existingPayments) / $income > 0.4)
+        DebtToIncomeFact($clientId: clientId, value > 0.4)
     then
         insert(new DecisionReasonFact($clientId, "Debt-to-income ratio exceeds 0.4 threshold"));
 end
@@ -387,7 +401,7 @@ rule "Decision Reason - Age plus loan term exceeds limit"
     when
         $profile: ClientFinancialProfile($clientId: clientId, $age: age)
         $req: LoanRequestFact(clientId == $clientId, numberOfInstallments > 0)
-        eval($age + ($req.getNumberOfInstallments() / 12) > 75)
+        eval($age * 12 + $req.getNumberOfInstallments() > 75 * 12)
     then
         insert(new DecisionReasonFact($clientId, "Client age plus loan term exceeds 75 year limit"));
 end
@@ -396,7 +410,7 @@ rule "Decision Reason - Fixed term insufficient coverage"
     salience 20
     when
         $req: LoanRequestFact($clientId: clientId, employmentStatus == "FIXED_TERM", contractEndDate != null, $inst: numberOfInstallments)
-        eval($req.getContractEndDate().isBefore(LocalDate.now().plusMonths($inst / 2)) &&
+        eval($req.getContractEndDate().isBefore(LocalDate.now().plusMonths(($inst + 1) / 2)) &&
              $req.getContractEndDate().isBefore(LocalDate.now().plusMonths(24)))
     then
         insert(new DecisionReasonFact($clientId, "Fixed term contract does not cover sufficient loan period"));
