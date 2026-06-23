@@ -122,6 +122,15 @@ public class LoanService {
             }
             LoanAssessment assessment = (LoanAssessment) assessments.iterator().next();
 
+            // Collect DecisionReasonFacts inserted by rules
+            Collection<DecisionReasonFact> decisionReasons = (Collection<DecisionReasonFact>) (Collection<?>)
+                    kieSession.getObjects(o -> o instanceof DecisionReasonFact);
+            for (DecisionReasonFact reason : decisionReasons) {
+                if (reason.getClientId().equals(assessment.getClientId())) {
+                    assessment.addReason(reason.getReason());
+                }
+            }
+
             boolean approved = queryExists(kieSession, "isLoanApproved",
                     new Object[]{assessment.getClientId()});
 
@@ -130,22 +139,6 @@ public class LoanService {
                 assessment.addReason("Recommendation: Approve loan");
             } else {
                 assessment.setApproved(false);
-                if (!queryExists(kieSession, "hasValidLoanPeriod",
-                        new Object[]{assessment.getClientId()})) {
-                    assessment.addReason("Rejection reason: Loan period must be between 3 and 360 months");
-                }
-                if (!queryExists(kieSession, "hasStableEmployment",
-                        new Object[]{assessment.getClientId()})) {
-                    assessment.addReason("Rejection reason: Client does not have stable employment for the loan duration");
-                }
-                if (!queryExists(kieSession, "hasSufficientIncome",
-                        new Object[]{assessment.getClientId()})) {
-                    assessment.addReason("Rejection reason: Insufficient income to cover loan payments");
-                }
-                if (!queryExists(kieSession, "hasAcceptableRisk",
-                        new Object[]{assessment.getClientId()})) {
-                    assessment.addReason("Rejection reason: Overall risk score is too high for loan approval");
-                }
             }
 
             return assessment;
