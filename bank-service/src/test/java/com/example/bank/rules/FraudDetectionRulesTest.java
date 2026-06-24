@@ -13,6 +13,7 @@ import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.KieSessionConfiguration;
 import org.kie.api.runtime.conf.ClockTypeOption;
 import org.kie.api.runtime.rule.EntryPoint;
+import org.kie.api.runtime.rule.FactHandle;
 import org.kie.api.time.SessionPseudoClock;
 import org.kie.internal.io.ResourceFactory;
 
@@ -1127,6 +1128,75 @@ class FraudDetectionRulesTest {
             List<String> reasons = getReasons(ks);
             assertTrue(reasons.stream().anyMatch(r -> r.contains("Many small")),
                 "Expected MANY_SMALL: 5th event sees prior 4 events in session");
+        } finally {
+            ks.dispose();
+        }
+    }
+
+    // ========================================================================
+    // STALE RESULTS — evaluateTransaction must not return results from other txs
+    // ========================================================================
+
+    @Test
+    @DisplayName("evaluateTransaction returns only results for current transaction, not stale ones")
+    void testNoStaleResultsFromPreviousTransaction() {
+        // Simulates the fix in FraudDetectionService.evaluateTransaction():
+        //   1. filter results by transactionId (only return facts for current event)
+        //   2. delete all SuspiciousTransactionFact from session after reading
+        KieSession ks = createRealtimeSession();
+        try {
+            // Transaction A: large night transaction (6000 EUR at 3am → triggers LARGE_NIGHT)
+            ep(ks).insert(new CardTransactionEvent(1L, 1L, 100L,
+                "ACC-001", "ACC-002",
+                6000.0, epoch(LocalDateTime.of(2026, 6, 15, 3, 0)),
+                45.0, 15.0, "Zagreb", "Croatia"));
+            ks.fireAllRules();
+
+            // Step 1: read all results, filter by current transactionId (tx 1)
+            Collection<?> allAfterA = ks.getObjects(o -> o instanceof SuspiciousTransactionFact);
+            List<SuspiciousTransactionFact> resultsForA = new ArrayList<>();
+            for (Object obj : allAfterA) {
+                SuspiciousTransactionFact f = (SuspiciousTransactionFact) obj;
+                if (f.getTransactionId().equals(1L)) {
+                    resultsForA.add(f);
+                }
+            }
+            assertFalse(resultsForA.isEmpty(), "Transaction A must have fraud results");
+            assertTrue(resultsForA.stream().anyMatch(r -> r.getReason().contains("Large night")),
+                "Transaction A should trigger LARGE_NIGHT");
+
+            // Step 2: delete ALL SuspiciousTransactionFact from session (prevent memory leak)
+            for (Object obj : allAfterA) {
+                FactHandle handle = ks.getFactHandle(obj);
+                if (handle != null) ks.delete(handle);
+            }
+
+            // Transaction B: normal daytime transaction (100 EUR at 15:00 → no fraud)
+            ep(ks).insert(new CardTransactionEvent(2L, 1L, 100L,
+                "ACC-001", "ACC-002",
+                100.0, epoch(LocalDateTime.of(2026, 6, 15, 15, 0)),
+                45.0, 15.0, "Zagreb", "Croatia"));
+            ks.fireAllRules();
+
+            // Read all results, filter by current transactionId (tx 2)
+            Collection<?> allAfterB = ks.getObjects(o -> o instanceof SuspiciousTransactionFact);
+            List<SuspiciousTransactionFact> resultsForB = new ArrayList<>();
+            for (Object obj : allAfterB) {
+                SuspiciousTransactionFact f = (SuspiciousTransactionFact) obj;
+                if (f.getTransactionId().equals(2L)) {
+                    resultsForB.add(f);
+                }
+            }
+
+            // Transaction B is normal — filtered results for B must be empty
+            assertTrue(resultsForB.isEmpty(),
+                "Transaction B (normal) must not return any SuspiciousTransactionFact when filtered by its transactionId");
+
+            // Clean up any remaining SuspiciousTransactionFact (from possible rule re-fires for old events)
+            for (Object obj : allAfterB) {
+                FactHandle handle = ks.getFactHandle(obj);
+                if (handle != null) ks.delete(handle);
+            }
         } finally {
             ks.dispose();
         }

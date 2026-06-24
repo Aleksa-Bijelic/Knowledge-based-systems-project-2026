@@ -13,6 +13,7 @@ import org.kie.api.builder.Results;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.rule.EntryPoint;
+import org.kie.api.runtime.rule.FactHandle;
 import org.kie.internal.io.ResourceFactory;
 import org.springframework.stereotype.Service;
 
@@ -20,10 +21,8 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -72,7 +71,6 @@ public class FraudDetectionService {
         this.kieSession = kieContainer.newKieSession("fraudKieSession");
         EntryPoint ep = kieSession.getEntryPoint("card-transactions");
 
-        Set<Long> clientIds = new HashSet<>();
         Map<String, Long> accountToClient = new HashMap<>();
         List<Transaction> history = transactionRepository.findAllCompletedOrApproved();
         for (Transaction tx : history) {
@@ -85,7 +83,6 @@ public class FraudDetectionService {
                 }
             }
             if (clientId == null) continue;
-            clientIds.add(clientId);
 
             long txEpoch = tx.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
             CardTransactionEvent histEvent = new CardTransactionEvent(
@@ -99,12 +96,6 @@ public class FraudDetectionService {
             ep.insert(histEvent);
         }
 
-        // Insert non-expiring markers so existing clients' first new tx can be evaluated
-        for (Long clientId : clientIds) {
-            kieSession.insert(new ClientActivityMarker(clientId));
-        }
-
-        kieSession.fireAllRules();
     }
 
     public List<SuspiciousTransactionFact> evaluateTransaction(CardTransactionEvent event) {
@@ -114,21 +105,19 @@ public class FraudDetectionService {
             ep.insert(event);
             kieSession.fireAllRules();
 
-            // Insert a non-expiring marker for new clients so future transactions
-            // are evaluated with knowledge of prior activity
-            boolean markerExists = !kieSession.getObjects(o ->
-                o instanceof ClientActivityMarker m && m.getClientId().equals(event.getClientId())
-            ).isEmpty();
-            if (!markerExists) {
-                kieSession.insert(new ClientActivityMarker(event.getClientId()));
-            }
-
             Collection<?> suspiciousFacts = kieSession.getObjects(
                 o -> o instanceof SuspiciousTransactionFact
             );
             List<SuspiciousTransactionFact> result = new ArrayList<>();
             for (Object fact : suspiciousFacts) {
-                result.add((SuspiciousTransactionFact) fact);
+                SuspiciousTransactionFact stf = (SuspiciousTransactionFact) fact;
+                if (stf.getTransactionId().equals(event.getTransactionId())) {
+                    result.add(stf);
+                }
+                FactHandle handle = kieSession.getFactHandle(fact);
+                if (handle != null) {
+                    kieSession.delete(handle);
+                }
             }
             return result;
         } finally {
