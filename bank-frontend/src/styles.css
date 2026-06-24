@@ -670,6 +670,141 @@ label {
   border: 1px solid #fee2e2;
 }
 
+/* Suspicious transactions */
+.suspicious-card {
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fff7ed 100%);
+  border: 1px solid #fbbf24;
+}
+
+.suspicious-card .section-eyebrow {
+  background: rgba(245, 158, 11, 0.15);
+  color: #92400e;
+}
+
+.suspicious-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.suspicious-item {
+  background: white;
+  border-radius: 16px;
+  padding: 18px;
+  border: 1px solid #fde68a;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.suspicious-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.suspicious-id {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-weight: 800;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+.suspicious-status {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.suspicious-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.suspicious-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detail-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.detail-value {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.92rem;
+}
+
+.detail-value.mono {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.82rem;
+  word-break: break-all;
+}
+
+.suspicious-reason {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.suspicious-reason .icon {
+  flex-shrink: 0;
+  color: #f59e0b;
+}
+
+.suspicious-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.btn-approve {
+  color: #166534;
+  background: #dcfce7;
+  border-color: #bbf7d0;
+}
+
+.btn-approve:hover:not(:disabled) {
+  background: #bbf7d0;
+}
+
+.btn-reject {
+  color: #7f1d1d;
+  background: #fee2e2;
+  border-color: #fecaca;
+}
+
+.btn-reject:hover:not(:disabled) {
+  background: #fecaca;
+}
+
+.btn-approve:disabled,
+.btn-reject:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Spinner animation */
 @keyframes spin {
   from { transform: rotate(0deg); }

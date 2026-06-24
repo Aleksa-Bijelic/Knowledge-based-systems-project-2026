@@ -3,9 +3,14 @@ package com.example.bank.controller;
 import com.example.bank.dto.PaymentRequest;
 import com.example.bank.dto.PaymentResponse;
 import com.example.bank.dto.SuspiciousTransactionResponse;
+import com.example.bank.model.BankUser;
 import com.example.bank.model.Transaction;
+import com.example.bank.repository.BankUserRepository;
 import com.example.bank.service.TransactionService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,9 +21,12 @@ import java.util.Map;
 public class TransactionController {
 
     private final TransactionService transactionService;
+    private final BankUserRepository bankUserRepository;
 
-    public TransactionController(TransactionService transactionService) {
+    public TransactionController(TransactionService transactionService,
+                                 BankUserRepository bankUserRepository) {
         this.transactionService = transactionService;
+        this.bankUserRepository = bankUserRepository;
     }
 
     @PostMapping("/process")
@@ -31,10 +39,13 @@ public class TransactionController {
         }
     }
 
-    @GetMapping("/suspicious/{accountNumber}")
-    public ResponseEntity<List<SuspiciousTransactionResponse>> getSuspiciousTransactions(
-            @PathVariable String accountNumber) {
-        List<Transaction> transactions = transactionService.getSuspiciousTransactions(accountNumber);
+    @GetMapping("/suspicious")
+    public ResponseEntity<List<SuspiciousTransactionResponse>> getSuspiciousTransactions() {
+        BankUser user = currentUser();
+        if (user == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        List<Transaction> transactions = transactionService.getSuspiciousTransactions(user.getId());
         List<SuspiciousTransactionResponse> response = transactions.stream()
             .map(tx -> {
                 SuspiciousTransactionResponse r = new SuspiciousTransactionResponse();
@@ -54,19 +65,33 @@ public class TransactionController {
 
     @PostMapping("/{id}/approve")
     public ResponseEntity<Map<String, String>> approveTransaction(@PathVariable Long id) {
-        boolean updated = transactionService.approveTransaction(id);
+        BankUser user = currentUser();
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        boolean updated = transactionService.approveTransaction(id, user.getId());
         if (updated) {
             return ResponseEntity.ok(Map.of("message", "Transaction approved"));
         }
-        return ResponseEntity.badRequest().body(Map.of("message", "Transaction not found or not in suspicious state"));
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Transaction not found, not in suspicious state, or does not belong to you"));
     }
 
     @PostMapping("/{id}/reject")
     public ResponseEntity<Map<String, String>> rejectTransaction(@PathVariable Long id) {
-        boolean updated = transactionService.rejectTransaction(id);
+        BankUser user = currentUser();
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+        }
+        boolean updated = transactionService.rejectTransaction(id, user.getId());
         if (updated) {
             return ResponseEntity.ok(Map.of("message", "Transaction rejected"));
         }
-        return ResponseEntity.badRequest().body(Map.of("message", "Transaction not found or not in suspicious state"));
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Transaction not found, not in suspicious state, or does not belong to you"));
+    }
+
+    private BankUser currentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return null;
+        return bankUserRepository.findByUsername(auth.getName()).orElse(null);
     }
 }

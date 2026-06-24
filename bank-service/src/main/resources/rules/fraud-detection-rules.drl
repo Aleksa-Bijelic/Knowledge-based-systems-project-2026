@@ -7,18 +7,19 @@ import com.example.bank.rules.DistanceCalculator
 declare CardTransactionEvent
     @role(event)
     @timestamp(timestamp)
+    @expires(90d)
 end
 
 rule "MANY_SMALL_TRANSACTIONS"
     when
-        $t: CardTransactionEvent($cId: clientId, amount < 20.0)
+        $t: CardTransactionEvent($cId: clientId, amount < 20.0) from entry-point "card-transactions"
         Number(intValue >= 4) from accumulate(
             $other: CardTransactionEvent(
                 clientId == $cId,
                 amount < 20.0,
                 this != $t,
                 this before[0s, 10m] $t
-            ),
+            ) from entry-point "card-transactions",
             count($other)
         )
         not SuspiciousTransactionFact(transactionId == $t.transactionId, reason str[startsWith] "Many small")
@@ -29,7 +30,7 @@ end
 
 rule "LARGE_NIGHT_TRANSACTION"
     when
-        $t: CardTransactionEvent($cId: clientId, amount > 5000.0)
+        $t: CardTransactionEvent($cId: clientId, amount > 5000.0) from entry-point "card-transactions"
         eval($t.getHour() >= 0 && $t.getHour() < 5)
         not SuspiciousTransactionFact(transactionId == $t.transactionId, reason str[startsWith] "Large night")
     then
@@ -39,9 +40,13 @@ end
 
 rule "UNUSUAL_TRANSACTION_AMOUNT"
     when
-        $t: CardTransactionEvent($cId: clientId, $amt: amount)
+        $t: CardTransactionEvent($cId: clientId, $amt: amount) from entry-point "card-transactions"
+        Number(intValue >= 5) from accumulate(
+            $e: CardTransactionEvent(clientId == $cId, this != $t) from entry-point "card-transactions",
+            count($e)
+        )
         $avg: Number() from accumulate(
-            $e: CardTransactionEvent(clientId == $cId, this != $t) over window:length(30),
+            $e: CardTransactionEvent(clientId == $cId, this != $t) over window:length(30) from entry-point "card-transactions",
             average($e.getAmount())
         )
         eval($avg != null && $amt >= $avg.doubleValue() * 5.0)
@@ -53,33 +58,40 @@ end
 
 rule "NEW_LOCATION"
     when
-        $t: CardTransactionEvent($cId: clientId, $city: city)
+        $t: CardTransactionEvent($cId: clientId, $lat: latitude, $lon: longitude) from entry-point "card-transactions"
+        exists (CardTransactionEvent(clientId == $cId, this != $t, this before $t) from entry-point "card-transactions")
         not (
             CardTransactionEvent(
                 clientId == $cId,
-                city == $city,
                 this != $t,
-                this before[0s, 90d] $t
-            )
+                this before[0s, 90d] $t,
+                eval(DistanceCalculator.distance($lat, $lon, latitude, longitude) <= 50.0)
+            ) from entry-point "card-transactions"
         )
         not SuspiciousTransactionFact(transactionId == $t.transactionId, reason str[startsWith] "Transaction from new location")
     then
         insert(new SuspiciousTransactionFact($t.getTransactionId(),
-            "Transaction from new location: " + $city));
+            "Transaction from new location: no prior transaction within 50km in last 90 days"));
 end
 
 rule "IMPOSSIBLE_TRAVEL"
     when
-        $t1: CardTransactionEvent($cId: clientId, $lat1: latitude, $lon1: longitude)
+        $t1: CardTransactionEvent($cId: clientId, $lat1: latitude, $lon1: longitude, $ts1: timestamp) from entry-point "card-transactions"
         $t2: CardTransactionEvent(
             clientId == $cId,
             this != $t1,
             this after[0s, 2h] $t1,
-            $lat2: latitude, $lon2: longitude
-        )
-        eval(DistanceCalculator.distance($lat1, $lon1, $lat2, $lon2) > 500.0)
+            $lat2: latitude, $lon2: longitude,
+            $ts2: timestamp,
+            eval($ts2 > $ts1)
+        ) from entry-point "card-transactions"
+        eval(DistanceCalculator.distance($lat1, $lon1, $lat2, $lon2) > 100.0)
+        eval(DistanceCalculator.distance($lat1, $lon1, $lat2, $lon2)
+            / (($ts2 - $ts1) / 3600000.0) > 1000.0)
         not SuspiciousTransactionFact(transactionId == $t2.transactionId, reason str[startsWith] "Impossible travel")
     then
         insert(new SuspiciousTransactionFact($t2.getTransactionId(),
-            "Impossible travel: transaction over 500km apart within 2 hours"));
+            "Impossible travel: speed " +
+            (DistanceCalculator.distance($lat1, $lon1, $lat2, $lon2)
+                / (($ts2 - $ts1) / 3600000.0)) + " km/h exceeds 1000 km/h"));
 end

@@ -41,6 +41,18 @@ public class Transaction {
     @Column(name = "fraud_reason", length = 500)
     private String fraudReason;
 
+    @Column
+    private double latitude;
+
+    @Column
+    private double longitude;
+
+    @Column
+    private String city;
+
+    @Column
+    private String country;
+
     public Transaction() {
     }
 
@@ -130,5 +142,37 @@ public class Transaction {
 
     public void setFraudReason(String fraudReason) {
         this.fraudReason = fraudReason;
+    }
+
+    public double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(double latitude) {
+        this.latitude = latitude;
+    }
+
+    public double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(double longitude) {
+        this.longitude = longitude;
+    }
+
+    public String getCity() {
+        return city;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+
+    public String getCountry() {
+        return country;
+    }
+
+    public void setCountry(String country) {
+        this.country = country;
     }
 }
