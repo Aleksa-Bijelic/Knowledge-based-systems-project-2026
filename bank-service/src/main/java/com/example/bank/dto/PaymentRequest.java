@@ -9,6 +9,10 @@ public class PaymentRequest {
     private String cardExpirationDate;
     private String cardholderName;
     private String description;
+    private double latitude;
+    private double longitude;
+    private String city;
+    private String country;
 
     public PaymentRequest() {
     }
@@ -75,5 +79,37 @@ public class PaymentRequest {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(double latitude) {
+        this.latitude = latitude;
+    }
+
+    public double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(double longitude) {
+        this.longitude = longitude;
+    }
+
+    public String getCity() {
+        return city;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+
+    public String getCountry() {
+        return country;
+    }
+
+    public void setCountry(String country) {
+        this.country = country;
     }
 }

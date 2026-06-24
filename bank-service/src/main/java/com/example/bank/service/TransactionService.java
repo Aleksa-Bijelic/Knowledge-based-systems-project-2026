@@ -8,11 +8,17 @@ import com.example.bank.model.Transaction;
 import com.example.bank.repository.BankAccountRepository;
 import com.example.bank.repository.PaymentCardRepository;
 import com.example.bank.repository.TransactionRepository;
+import com.example.bank.rules.CardTransactionEvent;
+import com.example.bank.rules.FraudDetectionService;
+import com.example.bank.rules.SuspiciousTransactionFact;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class TransactionService {
@@ -20,13 +26,16 @@ public class TransactionService {
     private final BankAccountRepository bankAccountRepository;
     private final PaymentCardRepository paymentCardRepository;
     private final TransactionRepository transactionRepository;
+    private final FraudDetectionService fraudDetectionService;
 
     public TransactionService(BankAccountRepository bankAccountRepository,
                               PaymentCardRepository paymentCardRepository,
-                              TransactionRepository transactionRepository) {
+                              TransactionRepository transactionRepository,
+                              FraudDetectionService fraudDetectionService) {
         this.bankAccountRepository = bankAccountRepository;
         this.paymentCardRepository = paymentCardRepository;
         this.transactionRepository = transactionRepository;
+        this.fraudDetectionService = fraudDetectionService;
     }
 
     @Transactional
@@ -130,8 +139,86 @@ public class TransactionService {
         transaction.setDescription(request.getDescription());
         Transaction saved = transactionRepository.save(transaction);
 
+        // Run fraud detection
+        long nowEpoch = LocalDateTime.now().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        CardTransactionEvent event = new CardTransactionEvent(
+            saved.getId(),
+            senderAccount.getPackageAccount().getClient().getId(),
+            card.getId(),
+            senderAccount.getAccountNumber(),
+            receiverAccount.getAccountNumber(),
+            request.getAmount(),
+            nowEpoch,
+            request.getLatitude(),
+            request.getLongitude(),
+            request.getCity() != null ? request.getCity() : "",
+            request.getCountry() != null ? request.getCountry() : ""
+        );
+
+        // Load historical transactions for the sender account
+        List<Transaction> recentTransactions = transactionRepository
+            .findRecentCompletedBySenderAccount(senderAccount.getAccountNumber());
+        List<CardTransactionEvent> historicalEvents = new ArrayList<>();
+        for (Transaction tx : recentTransactions) {
+            if (tx.getId().equals(saved.getId())) continue;
+            long txEpoch = tx.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+            historicalEvents.add(new CardTransactionEvent(
+                tx.getId(),
+                senderAccount.getPackageAccount().getClient().getId(),
+                card.getId(),
+                tx.getSenderAccountNumber(),
+                tx.getReceiverAccountNumber(),
+                tx.getAmount(),
+                txEpoch,
+                0, 0, "", ""
+            ));
+        }
+
+        List<SuspiciousTransactionFact> fraudResults =
+            fraudDetectionService.evaluateTransactionWithHistory(event, historicalEvents);
+
+        if (!fraudResults.isEmpty()) {
+            String combinedReason = fraudResults.stream()
+                .map(SuspiciousTransactionFact::getReason)
+                .reduce((a, b) -> a + "; " + b)
+                .orElse("");
+            saved.setStatus("SUSPICIOUS");
+            saved.setFraudReason(combinedReason);
+            transactionRepository.save(saved);
+            return PaymentResponse.suspicious(saved.getId(), request.getAmount(),
+                senderAccount.getAccountNumber(), receiverAccount.getAccountNumber(), combinedReason);
+        }
+
         return PaymentResponse.ok(saved.getId(), request.getAmount(),
                 senderAccount.getAccountNumber(), receiverAccount.getAccountNumber());
+    }
+
+    public List<Transaction> getSuspiciousTransactions(String accountNumber) {
+        return transactionRepository.findByStatus("SUSPICIOUS").stream()
+            .filter(t -> t.getSenderAccountNumber().equals(accountNumber))
+            .toList();
+    }
+
+    public boolean approveTransaction(Long transactionId) {
+        return transactionRepository.findById(transactionId)
+            .map(tx -> {
+                if (!"SUSPICIOUS".equals(tx.getStatus())) return false;
+                tx.setStatus("APPROVED");
+                transactionRepository.save(tx);
+                return true;
+            })
+            .orElse(false);
+    }
+
+    public boolean rejectTransaction(Long transactionId) {
+        return transactionRepository.findById(transactionId)
+            .map(tx -> {
+                if (!"SUSPICIOUS".equals(tx.getStatus())) return false;
+                tx.setStatus("REJECTED");
+                transactionRepository.save(tx);
+                return true;
+            })
+            .orElse(false);
     }
 
     private String maskCardNumber(String cardNumber) {

@@ -10,6 +10,8 @@ public class PaymentResponse {
     private String senderAccountNumber;
     private String receiverAccountNumber;
     private LocalDateTime timestamp;
+    private boolean suspicious;
+    private String fraudReason;
 
     public PaymentResponse() {
     }
@@ -26,6 +28,17 @@ public class PaymentResponse {
         resp.setAmount(amount);
         resp.setSenderAccountNumber(sender);
         resp.setReceiverAccountNumber(receiver);
+        return resp;
+    }
+
+    public static PaymentResponse suspicious(Long transactionId, double amount, String sender, String receiver, String fraudReason) {
+        PaymentResponse resp = new PaymentResponse(true, "Payment processed but flagged as suspicious: " + fraudReason);
+        resp.setTransactionId(transactionId);
+        resp.setAmount(amount);
+        resp.setSenderAccountNumber(sender);
+        resp.setReceiverAccountNumber(receiver);
+        resp.setSuspicious(true);
+        resp.setFraudReason(fraudReason);
         return resp;
     }
 
@@ -87,5 +100,21 @@ public class PaymentResponse {
 
     public void setTimestamp(LocalDateTime timestamp) {
         this.timestamp = timestamp;
+    }
+
+    public boolean isSuspicious() {
+        return suspicious;
+    }
+
+    public void setSuspicious(boolean suspicious) {
+        this.suspicious = suspicious;
+    }
+
+    public String getFraudReason() {
+        return fraudReason;
+    }
+
+    public void setFraudReason(String fraudReason) {
+        this.fraudReason = fraudReason;
     }
 }

@@ -38,6 +38,9 @@ public class Transaction {
     @Column(name = "description")
     private String description;
 
+    @Column(name = "fraud_reason", length = 500)
+    private String fraudReason;
+
     public Transaction() {
     }
 
@@ -119,5 +122,13 @@ public class Transaction {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getFraudReason() {
+        return fraudReason;
+    }
+
+    public void setFraudReason(String fraudReason) {
+        this.fraudReason = fraudReason;
     }
 }

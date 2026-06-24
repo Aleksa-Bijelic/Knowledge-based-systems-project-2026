@@ -1,0 +1,85 @@
+package rules.fraud
+
+import com.example.bank.rules.CardTransactionEvent
+import com.example.bank.rules.SuspiciousTransactionFact
+import com.example.bank.rules.DistanceCalculator
+
+declare CardTransactionEvent
+    @role(event)
+    @timestamp(timestamp)
+end
+
+rule "MANY_SMALL_TRANSACTIONS"
+    when
+        $t: CardTransactionEvent($cId: clientId, amount < 20.0)
+        Number(intValue >= 4) from accumulate(
+            $other: CardTransactionEvent(
+                clientId == $cId,
+                amount < 20.0,
+                this != $t,
+                this before[0s, 10m] $t
+            ),
+            count($other)
+        )
+        not SuspiciousTransactionFact(transactionId == $t.transactionId, reason str[startsWith] "Many small")
+    then
+        insert(new SuspiciousTransactionFact($t.getTransactionId(),
+            "Many small transactions under 20 EUR within 10 minutes"));
+end
+
+rule "LARGE_NIGHT_TRANSACTION"
+    when
+        $t: CardTransactionEvent($cId: clientId, amount > 5000.0)
+        eval($t.getHour() >= 0 && $t.getHour() < 5)
+        not SuspiciousTransactionFact(transactionId == $t.transactionId, reason str[startsWith] "Large night")
+    then
+        insert(new SuspiciousTransactionFact($t.getTransactionId(),
+            "Large night transaction: " + $t.getAmount() + " EUR between 00:00-05:00"));
+end
+
+rule "UNUSUAL_TRANSACTION_AMOUNT"
+    when
+        $t: CardTransactionEvent($cId: clientId, $amt: amount)
+        $avg: Number() from accumulate(
+            $e: CardTransactionEvent(clientId == $cId, this != $t) over window:length(30),
+            average($e.getAmount())
+        )
+        eval($avg != null && $amt >= $avg.doubleValue() * 5.0)
+        not SuspiciousTransactionFact(transactionId == $t.transactionId, reason str[startsWith] "Transaction amount")
+    then
+        insert(new SuspiciousTransactionFact($t.getTransactionId(),
+            "Transaction amount " + $amt + " is 5x the average of " + $avg.doubleValue()));
+end
+
+rule "NEW_LOCATION"
+    when
+        $t: CardTransactionEvent($cId: clientId, $city: city)
+        not (
+            CardTransactionEvent(
+                clientId == $cId,
+                city == $city,
+                this != $t,
+                this before[0s, 90d] $t
+            )
+        )
+        not SuspiciousTransactionFact(transactionId == $t.transactionId, reason str[startsWith] "Transaction from new location")
+    then
+        insert(new SuspiciousTransactionFact($t.getTransactionId(),
+            "Transaction from new location: " + $city));
+end
+
+rule "IMPOSSIBLE_TRAVEL"
+    when
+        $t1: CardTransactionEvent($cId: clientId, $lat1: latitude, $lon1: longitude)
+        $t2: CardTransactionEvent(
+            clientId == $cId,
+            this != $t1,
+            this after[0s, 2h] $t1,
+            $lat2: latitude, $lon2: longitude
+        )
+        eval(DistanceCalculator.distance($lat1, $lon1, $lat2, $lon2) > 500.0)
+        not SuspiciousTransactionFact(transactionId == $t2.transactionId, reason str[startsWith] "Impossible travel")
+    then
+        insert(new SuspiciousTransactionFact($t2.getTransactionId(),
+            "Impossible travel: transaction over 500km apart within 2 hours"));
+end
