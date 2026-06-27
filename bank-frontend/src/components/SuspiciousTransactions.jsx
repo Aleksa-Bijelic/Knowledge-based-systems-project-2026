@@ -86,24 +86,30 @@ function SuspiciousTransactions({ token }) {
               <span className="suspicious-id">#{tx.id}</span>
               <span className="suspicious-status">{tx.status}</span>
             </div>
-            <div className="suspicious-details">
-              <div className="suspicious-detail">
-                <span className="detail-label">Amount</span>
-                <span className="detail-value">{Number(tx.amount).toFixed(2)} {tx.currency}</span>
-              </div>
-              <div className="suspicious-detail">
-                <span className="detail-label">From</span>
-                <span className="detail-value mono">{tx.senderAccountNumber}</span>
-              </div>
-              <div className="suspicious-detail">
-                <span className="detail-label">To</span>
-                <span className="detail-value mono">{tx.receiverAccountNumber}</span>
-              </div>
-              <div className="suspicious-detail">
-                <span className="detail-label">Date</span>
-                <span className="detail-value">{new Date(tx.createdAt).toLocaleString()}</span>
-              </div>
-            </div>
+              <div className="suspicious-details">
+                  <div className="suspicious-detail">
+                    <span className="detail-label">Amount</span>
+                    <span className="detail-value">{Number(tx.amount).toFixed(2)} {tx.currency}</span>
+                  </div>
+                  <div className="suspicious-detail">
+                    <span className="detail-label">From</span>
+                    <span className="detail-value mono">{tx.senderAccountNumber}</span>
+                  </div>
+                  <div className="suspicious-detail">
+                    <span className="detail-label">To</span>
+                    <span className="detail-value mono">{tx.receiverAccountNumber}</span>
+                  </div>
+                  <div className="suspicious-detail">
+                    <span className="detail-label">Date</span>
+                    <span className="detail-value">{new Date(tx.createdAt).toLocaleString()}</span>
+                  </div>
+                  {tx.city && (
+                    <div className="suspicious-detail">
+                      <span className="detail-label">Location</span>
+                      <span className="detail-value">{tx.city}{tx.country ? `, ${tx.country}` : ''}</span>
+                    </div>
+                  )}
+                </div>
             {tx.fraudReason && (
               <div className="suspicious-reason">
                 <FiAlertTriangle className="icon" />

@@ -2,17 +2,22 @@ const API_BASE = '/api';
 
 export async function request(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, options);
-  const data = await response.text();
+  const text = await response.text();
   if (!response.ok) {
-    throw new Error(data || response.statusText);
+    let message = text || response.statusText;
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed.message) message = parsed.message;
+    } catch {}
+    throw new Error(message);
   }
-  if (!data) {
+  if (!text) {
     return null;
   }
   try {
-    return JSON.parse(data);
+    return JSON.parse(text);
   } catch {
-    return data;
+    return text;
   }
 }
 

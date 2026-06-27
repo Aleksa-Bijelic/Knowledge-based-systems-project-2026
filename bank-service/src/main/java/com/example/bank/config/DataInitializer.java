@@ -128,6 +128,64 @@ public class DataInitializer {
                 System.out.println("Account number: " + savedAccount.getAccountNumber());
                 System.out.println("=================================");
             }
+
+            // === Create fraud detection test history for oliva ===
+            BankUser olivaClient = bankUserRepository.findByUsername("oliva")
+                    .orElseThrow(() -> new RuntimeException("Client oliva not found"));
+            List<PackageAccount> olivaPackages = packageAccountRepository.findByClientId(olivaClient.getId());
+            if (!olivaPackages.isEmpty()) {
+                PackageAccount mainPkg = olivaPackages.stream()
+                        .filter(p -> p.getName().equals("Personal - oliva"))
+                        .findFirst().orElse(olivaPackages.get(0));
+                List<BankAccount> mainAccounts = bankAccountRepository.findByPackageAccountId(mainPkg.getId());
+                if (!mainAccounts.isEmpty()) {
+                    BankAccount mainAccount = mainAccounts.get(0);
+                    String senderAcc = mainAccount.getAccountNumber();
+
+                    // Find any other bank account to use as receiver for history transactions
+                    List<BankAccount> allAccounts = bankAccountRepository.findAll();
+                    String receiverAcc = allAccounts.stream()
+                            .map(BankAccount::getAccountNumber)
+                            .filter(acc -> !acc.equals(senderAcc))
+                            .findFirst().orElse(senderAcc);
+
+                    // Only insert if no history transactions exist yet
+                    List<Transaction> existingHistory = transactionRepository.findBySenderAccountNumberAndStatusIn(
+                            senderAcc, List.of("COMPLETED", "APPROVED"));
+                    if (existingHistory.size() <= 6) { // only salary tx so far
+                        Object[][] historyData = {
+                            {1500.0, 45.8150, 15.9819, "Zagreb", "Croatia", "Coffee shop"},
+                            {1200.0, 45.8120, 15.9780, "Zagreb", "Croatia", "Lunch"},
+                            {1800.0, 45.8080, 15.9750, "Zagreb", "Croatia", "Supermarket"},
+                            {900.0,  45.8200, 15.9850, "Zagreb", "Croatia", "Taxi"},
+                            {2200.0, 45.8100, 15.9800, "Zagreb", "Croatia", "Dinner"},
+                            {1100.0, 45.4900, 16.3700, "Sisak", "Croatia", "Gas station"},
+                            {3000.0, 45.8150, 15.9819, "Zagreb", "Croatia", "Electronics"},
+                            {800.0,  45.8130, 15.9830, "Zagreb", "Croatia", "Bakery"},
+                            {1600.0, 45.4850, 16.3750, "Sisak", "Croatia", "Restaurant"},
+                            {2500.0, 45.8180, 15.9790, "Zagreb", "Croatia", "Clothing store"},
+                        };
+                        LocalDateTime now = LocalDateTime.now();
+                        for (int i = 0; i < historyData.length; i++) {
+                            Transaction tx = new Transaction();
+                            tx.setSenderAccountNumber(senderAcc);
+                            tx.setReceiverAccountNumber(receiverAcc);
+                            tx.setAmount((Double) historyData[i][0]);
+                            tx.setCurrency("RSD");
+                            tx.setStatus("COMPLETED");
+                            tx.setCreatedAt(now.minusDays(60 - i * 6).minusHours(i * 3));
+                            tx.setDescription((String) historyData[i][5]);
+                            tx.setLatitude((Double) historyData[i][1]);
+                            tx.setLongitude((Double) historyData[i][2]);
+                            tx.setCity((String) historyData[i][3]);
+                            tx.setCountry((String) historyData[i][4]);
+                            tx.setCardholderName("Oliva Maslina");
+                            transactionRepository.save(tx);
+                        }
+                        System.out.println("=== FRAUD TEST HISTORY: 10 transactions added for oliva ===");
+                    }
+                }
+            }
         };
     }
 

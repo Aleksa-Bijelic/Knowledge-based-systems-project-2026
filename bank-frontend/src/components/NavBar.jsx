@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
-import { FiLogOut, FiUserPlus, FiCreditCard, FiFileText } from 'react-icons/fi';
+import { FiLogOut, FiUserPlus, FiCreditCard, FiFileText, FiSend, FiBell } from 'react-icons/fi';
 
-function NavBar({ username, role, onLogout }) {
+function NavBar({ username, role, onLogout, suspiciousCount }) {
   const isOfficer = role === 'ROLE_OFFICER';
 
   return (
@@ -9,6 +9,19 @@ function NavBar({ username, role, onLogout }) {
       <div className="brand">Ocean Bank</div>
       <div className="tabs">
         {username && <Link to="/dashboard" className="tab">Dashboard</Link>}
+        {username && !isOfficer && (
+          <Link to="/payments" className="tab">
+            <FiSend className="icon" />
+            Payments
+          </Link>
+        )}
+        {username && !isOfficer && (
+          <Link to="/suspicious" className="tab">
+            <FiBell className="icon" />
+            Alerts
+            {suspiciousCount > 0 && <span className="badge">{suspiciousCount}</span>}
+          </Link>
+        )}
         {username && isOfficer && (
           <Link to="/dashboard" className="tab">
             <FiFileText className="icon" />
@@ -29,7 +42,7 @@ function NavBar({ username, role, onLogout }) {
         {username && (
           <div className="user">
             <FiCreditCard className="icon" />
-            Signed in as {username}
+            {username}
             {isOfficer && <span className="role-badge">Officer</span>}
           </div>
         )}

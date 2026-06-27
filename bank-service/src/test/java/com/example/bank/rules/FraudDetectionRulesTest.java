@@ -102,7 +102,7 @@ class FraudDetectionRulesTest {
             for (int i = 0; i < 5; i++) {
                 ep(ks).insert(new CardTransactionEvent((long) i + 1, 1L, 100L,
                     "ACC-001", "ACC-002",
-                    10.0, now,
+                    1000.0, now,
                     45.0, 15.0, "Zagreb", "Croatia"));
                 clock.advanceTime(1, TimeUnit.MINUTES);
                 now = clock.getCurrentTime();
@@ -130,7 +130,7 @@ class FraudDetectionRulesTest {
             for (int i = 0; i < 4; i++) {
                 ep(ks).insert(new CardTransactionEvent((long) i + 1, 1L, 100L,
                     "ACC-001", "ACC-002",
-                    15.0, now,
+                    1500.0, now,
                     45.0, 15.0, "Zagreb", "Croatia"));
                 clock.advanceTime(1, TimeUnit.MINUTES);
                 now = clock.getCurrentTime();
@@ -157,7 +157,7 @@ class FraudDetectionRulesTest {
             for (int i = 0; i < 4; i++) {
                 ep(ks).insert(new CardTransactionEvent((long) i + 1, 1L, 100L,
                     "ACC-001", "ACC-002",
-                    10.0, now,
+                    1000.0, now,
                     45.0, 15.0, "Zagreb", "Croatia"));
                 clock.advanceTime(1, TimeUnit.MINUTES);
                 now = clock.getCurrentTime();
@@ -168,7 +168,7 @@ class FraudDetectionRulesTest {
 
             ep(ks).insert(new CardTransactionEvent(5L, 1L, 100L,
                 "ACC-001", "ACC-002",
-                10.0, now,
+                1000.0, now,
                 45.0, 15.0, "Zagreb", "Croatia"));
 
             ks.fireAllRules();
@@ -180,7 +180,7 @@ class FraudDetectionRulesTest {
     }
 
     @Test
-    @DisplayName("Large transactions (>20) do not contribute to MANY_SMALL count")
+    @DisplayName("Large transactions (>=2500) do not contribute to MANY_SMALL count")
     void testManySmallOnlyCountsSmallTransactions() {
         KieSessionConfiguration config = KieServices.Factory.get().newKieSessionConfiguration();
         config.setOption(ClockTypeOption.get("pseudo"));
@@ -192,21 +192,21 @@ class FraudDetectionRulesTest {
             for (int i = 0; i < 3; i++) {
                 ep(ks).insert(new CardTransactionEvent((long) i + 1, 1L, 100L,
                     "ACC-001", "ACC-002",
-                    10.0, now,
+                    1000.0, now,
                     45.0, 15.0, "Zagreb", "Croatia"));
                 clock.advanceTime(1, TimeUnit.MINUTES);
                 now = clock.getCurrentTime();
             }
-            // 2 large transactions (>=20) should not count
+            // 2 large transactions (>=2500) should not count
             ep(ks).insert(new CardTransactionEvent(4L, 1L, 100L,
                 "ACC-001", "ACC-002",
-                100.0, now,
+                5000.0, now,
                 45.0, 15.0, "Zagreb", "Croatia"));
             clock.advanceTime(1, TimeUnit.MINUTES);
             now = clock.getCurrentTime();
             ep(ks).insert(new CardTransactionEvent(5L, 1L, 100L,
                 "ACC-001", "ACC-002",
-                200.0, now,
+                10000.0, now,
                 45.0, 15.0, "Zagreb", "Croatia"));
 
             ks.fireAllRules();
@@ -218,34 +218,34 @@ class FraudDetectionRulesTest {
     }
 
     // ========================================================================
-    // LARGE_NIGHT_TRANSACTION — amount > 5000 EUR between 00:00 and 05:00
+    // LARGE_NIGHT_TRANSACTION — amount > 500000 RSD between 00:00 and 05:00
     // ========================================================================
 
     @Test
-    @DisplayName("6000 EUR at 03:00 => LARGE_NIGHT_TRANSACTION triggered")
+    @DisplayName("600000 RSD at 03:00 => LARGE_NIGHT_TRANSACTION triggered")
     void testLargeNightTransactionTriggered() {
         KieSession ks = createRealtimeSession();
         try {
             ep(ks).insert(new CardTransactionEvent(1L, 1L, 100L,
                 "ACC-001", "ACC-002",
-                6000.0, epoch(LocalDateTime.of(2026, 6, 15, 3, 0)),
+                600000.0, epoch(LocalDateTime.of(2026, 6, 15, 3, 0)),
                 45.0, 15.0, "Zagreb", "Croatia"));
             ks.fireAllRules();
             assertTrue(getReasons(ks).stream().anyMatch(r -> r.contains("Large night")),
-                "Expected LARGE_NIGHT for 6000 EUR at 03:00");
+                "Expected LARGE_NIGHT for 600000 RSD at 03:00");
         } finally {
             ks.dispose();
         }
     }
 
     @Test
-    @DisplayName("6000 EUR at 15:00 => LARGE_NIGHT not triggered")
+    @DisplayName("600000 RSD at 15:00 => LARGE_NIGHT not triggered")
     void testLargeNightTransactionDaytime() {
         KieSession ks = createRealtimeSession();
         try {
             ep(ks).insert(new CardTransactionEvent(1L, 1L, 100L,
                 "ACC-001", "ACC-002",
-                6000.0, epoch(LocalDateTime.of(2026, 6, 15, 15, 0)),
+                600000.0, epoch(LocalDateTime.of(2026, 6, 15, 15, 0)),
                 45.0, 15.0, "Zagreb", "Croatia"));
             ks.fireAllRules();
             assertFalse(getReasons(ks).stream().anyMatch(r -> r.contains("Large night")),
@@ -256,13 +256,13 @@ class FraudDetectionRulesTest {
     }
 
     @Test
-    @DisplayName("5000.01 EUR at 04:59 => LARGE_NIGHT triggered (boundary)")
+    @DisplayName("500001 RSD at 04:59 => LARGE_NIGHT triggered (boundary)")
     void testLargeNightTransactionBoundary() {
         KieSession ks = createRealtimeSession();
         try {
             ep(ks).insert(new CardTransactionEvent(1L, 1L, 100L,
                 "ACC-001", "ACC-002",
-                5000.01, epoch(LocalDateTime.of(2026, 6, 15, 4, 59)),
+                500001.0, epoch(LocalDateTime.of(2026, 6, 15, 4, 59)),
                 45.0, 15.0, "Zagreb", "Croatia"));
             ks.fireAllRules();
             assertTrue(getReasons(ks).stream().anyMatch(r -> r.contains("Large night")),
@@ -273,13 +273,13 @@ class FraudDetectionRulesTest {
     }
 
     @Test
-    @DisplayName("6000 EUR at 05:00 => LARGE_NIGHT not triggered (hour boundary)")
+    @DisplayName("600000 RSD at 05:00 => LARGE_NIGHT not triggered (hour boundary)")
     void testLargeNightTransactionBoundaryHour() {
         KieSession ks = createRealtimeSession();
         try {
             ep(ks).insert(new CardTransactionEvent(1L, 1L, 100L,
                 "ACC-001", "ACC-002",
-                6000.0, epoch(LocalDateTime.of(2026, 6, 15, 5, 0)),
+                600000.0, epoch(LocalDateTime.of(2026, 6, 15, 5, 0)),
                 45.0, 15.0, "Zagreb", "Croatia"));
             ks.fireAllRules();
             assertFalse(getReasons(ks).stream().anyMatch(r -> r.contains("Large night")),
@@ -290,17 +290,17 @@ class FraudDetectionRulesTest {
     }
 
     @Test
-    @DisplayName("5000.00 EUR at 03:00 => LARGE_NIGHT not triggered (exact threshold)")
+    @DisplayName("500000 RSD at 03:00 => LARGE_NIGHT not triggered (exact threshold)")
     void testLargeNightTransactionExactThreshold() {
         KieSession ks = createRealtimeSession();
         try {
             ep(ks).insert(new CardTransactionEvent(1L, 1L, 100L,
                 "ACC-001", "ACC-002",
-                5000.0, epoch(LocalDateTime.of(2026, 6, 15, 3, 0)),
+                500000.0, epoch(LocalDateTime.of(2026, 6, 15, 3, 0)),
                 45.0, 15.0, "Zagreb", "Croatia"));
             ks.fireAllRules();
             assertFalse(getReasons(ks).stream().anyMatch(r -> r.contains("Large night")),
-                "Expected no LARGE_NIGHT for exactly 5000.00");
+                "Expected no LARGE_NIGHT for exactly 500000");
         } finally {
             ks.dispose();
         }
@@ -319,13 +319,13 @@ class FraudDetectionRulesTest {
             for (int i = 0; i < 30; i++) {
                 ep(ks).insert(new CardTransactionEvent((long) i + 1, 1L, 100L,
                     "ACC-001", "ACC-002",
-                    100.0, baseTime + i * 60000L,
+                    5000.0, baseTime + i * 60000L,
                     45.0, 15.0, "Zagreb", "Croatia"));
             }
 
             ep(ks).insert(new CardTransactionEvent(31L, 1L, 100L,
                 "ACC-001", "ACC-002",
-                600.0, baseTime + 30 * 60000L,
+                30000.0, baseTime + 30 * 60000L,
                 45.0, 15.0, "Zagreb", "Croatia"));
 
             ks.fireAllRules();
@@ -345,13 +345,13 @@ class FraudDetectionRulesTest {
             for (int i = 0; i < 30; i++) {
                 ep(ks).insert(new CardTransactionEvent((long) i + 1, 1L, 100L,
                     "ACC-001", "ACC-002",
-                    100.0, baseTime + i * 60000L,
+                    5000.0, baseTime + i * 60000L,
                     45.0, 15.0, "Zagreb", "Croatia"));
             }
 
             ep(ks).insert(new CardTransactionEvent(31L, 1L, 100L,
                 "ACC-001", "ACC-002",
-                400.0, baseTime + 30 * 60000L,
+                20000.0, baseTime + 30 * 60000L,
                 45.0, 15.0, "Zagreb", "Croatia"));
 
             ks.fireAllRules();
@@ -363,7 +363,7 @@ class FraudDetectionRulesTest {
     }
 
     @Test
-    @DisplayName("30 transactions of 100 then 1 of 500 (exactly 5x) => triggered")
+    @DisplayName("30 transactions of 5000 then 1 of 25000 (exactly 5x) => triggered")
     void testUnusualAmountBoundary() {
         KieSession ks = createRealtimeSession();
         try {
@@ -371,13 +371,13 @@ class FraudDetectionRulesTest {
             for (int i = 0; i < 30; i++) {
                 ep(ks).insert(new CardTransactionEvent((long) i + 1, 1L, 100L,
                     "ACC-001", "ACC-002",
-                    100.0, baseTime + i * 60000L,
+                    5000.0, baseTime + i * 60000L,
                     45.0, 15.0, "Zagreb", "Croatia"));
             }
 
             ep(ks).insert(new CardTransactionEvent(31L, 1L, 100L,
                 "ACC-001", "ACC-002",
-                500.0, baseTime + 30 * 60000L,
+                25000.0, baseTime + 30 * 60000L,
                 45.0, 15.0, "Zagreb", "Croatia"));
 
             ks.fireAllRules();
@@ -398,13 +398,13 @@ class FraudDetectionRulesTest {
             for (int i = 0; i < 4; i++) {
                 ep(ks).insert(new CardTransactionEvent((long) i + 1, 1L, 100L,
                     "ACC-001", "ACC-002",
-                    50.0, baseTime + i * 60000L,
+                    5000.0, baseTime + i * 60000L,
                     45.0, 15.0, "Zagreb", "Croatia"));
             }
 
             ep(ks).insert(new CardTransactionEvent(5L, 1L, 100L,
                 "ACC-001", "ACC-002",
-                1000.0, baseTime + 4 * 60000L,
+                100000.0, baseTime + 4 * 60000L,
                 45.0, 15.0, "Zagreb", "Croatia"));
 
             ks.fireAllRules();
@@ -424,13 +424,13 @@ class FraudDetectionRulesTest {
             for (int i = 0; i < 5; i++) {
                 ep(ks).insert(new CardTransactionEvent((long) i + 1, 1L, 100L,
                     "ACC-001", "ACC-002",
-                    50.0, baseTime + i * 60000L,
+                    5000.0, baseTime + i * 60000L,
                     45.0, 15.0, "Zagreb", "Croatia"));
             }
 
             ep(ks).insert(new CardTransactionEvent(6L, 1L, 100L,
                 "ACC-001", "ACC-002",
-                500.0, baseTime + 5 * 60000L,
+                50000.0, baseTime + 5 * 60000L,
                 45.0, 15.0, "Zagreb", "Croatia"));
 
             ks.fireAllRules();
@@ -448,7 +448,7 @@ class FraudDetectionRulesTest {
         try {
             ep(ks).insert(new CardTransactionEvent(1L, 1L, 100L,
                 "ACC-001", "ACC-002",
-                10000.0, epoch(LocalDateTime.of(2026, 6, 1, 10, 0)),
+                1000000.0, epoch(LocalDateTime.of(2026, 6, 1, 10, 0)),
                 45.0, 15.0, "Zagreb", "Croatia"));
 
             ks.fireAllRules();
@@ -941,12 +941,12 @@ class FraudDetectionRulesTest {
                     45.815, 15.982, "Zagreb", "Croatia"));
             }
 
-            // 6th transaction: 6000 EUR at midnight from new location (Paris)
-            // This should trigger: LARGE_NIGHT (6000 EUR at 3am), NEW_LOCATION (has prior tx in Zagreb, Paris is far)
+            // 6th transaction: 600000 RSD at midnight from new location (Paris)
+            // This should trigger: LARGE_NIGHT (600000 RSD at 3am), NEW_LOCATION (has prior tx in Zagreb, Paris is far)
             long nightTime = epoch(LocalDateTime.of(2026, 6, 2, 3, 0));
             ep(ks).insert(new CardTransactionEvent(6L, 1L, 100L,
                 "ACC-001", "ACC-002",
-                6000.0, nightTime,
+                600000.0, nightTime,
                 48.857, 2.352, "Paris", "France"));
 
             ks.fireAllRules();
@@ -1145,10 +1145,10 @@ class FraudDetectionRulesTest {
         //   2. delete all SuspiciousTransactionFact from session after reading
         KieSession ks = createRealtimeSession();
         try {
-            // Transaction A: large night transaction (6000 EUR at 3am → triggers LARGE_NIGHT)
+            // Transaction A: large night transaction (600000 RSD at 3am → triggers LARGE_NIGHT)
             ep(ks).insert(new CardTransactionEvent(1L, 1L, 100L,
                 "ACC-001", "ACC-002",
-                6000.0, epoch(LocalDateTime.of(2026, 6, 15, 3, 0)),
+                600000.0, epoch(LocalDateTime.of(2026, 6, 15, 3, 0)),
                 45.0, 15.0, "Zagreb", "Croatia"));
             ks.fireAllRules();
 
@@ -1171,7 +1171,7 @@ class FraudDetectionRulesTest {
                 if (handle != null) ks.delete(handle);
             }
 
-            // Transaction B: normal daytime transaction (100 EUR at 15:00 → no fraud)
+            // Transaction B: normal daytime transaction (100 RSD at 15:00 → no fraud)
             ep(ks).insert(new CardTransactionEvent(2L, 1L, 100L,
                 "ACC-001", "ACC-002",
                 100.0, epoch(LocalDateTime.of(2026, 6, 15, 15, 0)),

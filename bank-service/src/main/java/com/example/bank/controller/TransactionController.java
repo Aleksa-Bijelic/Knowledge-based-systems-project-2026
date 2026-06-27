@@ -6,7 +6,9 @@ import com.example.bank.dto.SuspiciousTransactionResponse;
 import com.example.bank.model.BankUser;
 import com.example.bank.model.Transaction;
 import com.example.bank.repository.BankUserRepository;
+import com.example.bank.security.JwtUtil;
 import com.example.bank.service.TransactionService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -22,16 +24,20 @@ public class TransactionController {
 
     private final TransactionService transactionService;
     private final BankUserRepository bankUserRepository;
+    private final JwtUtil jwtUtil;
 
     public TransactionController(TransactionService transactionService,
-                                 BankUserRepository bankUserRepository) {
+                                 BankUserRepository bankUserRepository,
+                                 JwtUtil jwtUtil) {
         this.transactionService = transactionService;
         this.bankUserRepository = bankUserRepository;
+        this.jwtUtil = jwtUtil;
     }
 
     @PostMapping("/process")
-    public ResponseEntity<PaymentResponse> processPayment(@RequestBody PaymentRequest request) {
-        PaymentResponse response = transactionService.processPayment(request);
+    public ResponseEntity<PaymentResponse> processPayment(@RequestBody PaymentRequest request,
+                                                           HttpServletRequest httpRequest) {
+        PaymentResponse response = transactionService.processPayment(request, httpRequest);
         if (response.isSuccess()) {
             return ResponseEntity.ok(response);
         } else {
@@ -40,8 +46,8 @@ public class TransactionController {
     }
 
     @GetMapping("/suspicious")
-    public ResponseEntity<List<SuspiciousTransactionResponse>> getSuspiciousTransactions() {
-        BankUser user = currentUser();
+    public ResponseEntity<List<SuspiciousTransactionResponse>> getSuspiciousTransactions(HttpServletRequest request) {
+        BankUser user = currentUser(request);
         if (user == null) {
             return ResponseEntity.badRequest().build();
         }
@@ -57,6 +63,9 @@ public class TransactionController {
                 r.setStatus(tx.getStatus());
                 r.setFraudReason(tx.getFraudReason());
                 r.setCreatedAt(tx.getCreatedAt());
+                r.setCity(tx.getCity());
+                r.setCountry(tx.getCountry());
+                r.setDescription(tx.getDescription());
                 return r;
             })
             .toList();
@@ -64,34 +73,47 @@ public class TransactionController {
     }
 
     @PostMapping("/{id}/approve")
-    public ResponseEntity<Map<String, String>> approveTransaction(@PathVariable Long id) {
-        BankUser user = currentUser();
+    public ResponseEntity<Map<String, String>> approveTransaction(@PathVariable("id") Long id, HttpServletRequest request) {
+        BankUser user = currentUser(request);
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
-        boolean updated = transactionService.approveTransaction(id, user.getId());
-        if (updated) {
+        String error = transactionService.approveTransaction(id, user.getId());
+        if (error == null) {
             return ResponseEntity.ok(Map.of("message", "Transaction approved"));
         }
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Transaction not found, not in suspicious state, or does not belong to you"));
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", error));
     }
 
     @PostMapping("/{id}/reject")
-    public ResponseEntity<Map<String, String>> rejectTransaction(@PathVariable Long id) {
-        BankUser user = currentUser();
+    public ResponseEntity<Map<String, String>> rejectTransaction(@PathVariable("id") Long id, HttpServletRequest request) {
+        BankUser user = currentUser(request);
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
         }
-        boolean updated = transactionService.rejectTransaction(id, user.getId());
-        if (updated) {
+        String error = transactionService.rejectTransaction(id, user.getId());
+        if (error == null) {
             return ResponseEntity.ok(Map.of("message", "Transaction rejected"));
         }
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Transaction not found, not in suspicious state, or does not belong to you"));
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", error));
     }
 
-    private BankUser currentUser() {
+    private BankUser currentUser(HttpServletRequest request) {
+        // First try SecurityContext (set by JwtAuthenticationFilter)
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null) return null;
-        return bankUserRepository.findByUsername(auth.getName()).orElse(null);
+        if (auth != null) {
+            BankUser user = bankUserRepository.findByUsername(auth.getName()).orElse(null);
+            if (user != null) return user;
+        }
+        // Fallback: parse JWT directly from Authorization header
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            String token = header.substring(7);
+            if (jwtUtil.validateToken(token)) {
+                String username = jwtUtil.getUsernameFromToken(token);
+                return bankUserRepository.findByUsername(username).orElse(null);
+            }
+        }
+        return null;
     }
 }

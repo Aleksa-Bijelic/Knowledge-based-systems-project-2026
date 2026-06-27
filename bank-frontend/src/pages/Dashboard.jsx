@@ -3,7 +3,6 @@ import { FiPlus, FiCreditCard, FiRefreshCw, FiFileText } from 'react-icons/fi';
 import { request, authHeader } from '../api';
 import LoanRequestForm from '../components/LoanRequestForm';
 import LoanAssessmentResult from '../components/LoanAssessmentResult';
-import SuspiciousTransactions from '../components/SuspiciousTransactions';
 
 const CURRENCIES = ['RSD', 'EUR', 'USD'];
 
@@ -237,8 +236,6 @@ function ClientDashboard({ token, username }) {
 
   return (
     <div className="dashboard-page">
-      <SuspiciousTransactions token={token} />
-
       <section className="card welcome-card">
         <div>
           <div className="section-eyebrow">Welcome</div>

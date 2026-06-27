@@ -38,7 +38,7 @@ public class PackageAccountController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> getPackageAccount(@PathVariable Long id) {
+    public ResponseEntity<?> getPackageAccount(@PathVariable("id") Long id) {
         try {
             PackageAccountResponse response = packageAccountService.getPackageAccountForClient(currentUsername(), id);
             return ResponseEntity.ok(response);

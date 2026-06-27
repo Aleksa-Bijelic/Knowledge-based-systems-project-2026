@@ -11,9 +11,13 @@ import com.example.bank.repository.TransactionRepository;
 import com.example.bank.rules.CardTransactionEvent;
 import com.example.bank.rules.FraudDetectionService;
 import com.example.bank.rules.SuspiciousTransactionFact;
+import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.InetAddress;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -22,6 +26,8 @@ import java.util.List;
 
 @Service
 public class TransactionService {
+
+    private static final Logger log = LoggerFactory.getLogger(TransactionService.class);
 
     private final BankAccountRepository bankAccountRepository;
     private final PaymentCardRepository paymentCardRepository;
@@ -39,7 +45,7 @@ public class TransactionService {
     }
 
     @Transactional
-    public PaymentResponse processPayment(PaymentRequest request) {
+    public PaymentResponse processPayment(PaymentRequest request, HttpServletRequest httpRequest) {
         // --- validation ---
         if (request.getCardNumber() == null || request.getCardNumber().isBlank()) {
             return PaymentResponse.fail("Card number is required");
@@ -97,6 +103,24 @@ public class TransactionService {
             return PaymentResponse.fail("Cannot transfer to the same account");
         }
 
+        // -- resolve IP and location --
+        String clientIp = resolveClientIp(httpRequest);
+        String city = request.getCity();
+        String country = request.getCountry();
+        Double latitude = request.getLatitude();
+        Double longitude = request.getLongitude();
+
+        // If city/country not provided explicitly, derive from IP
+        if ((city == null || city.isBlank()) && clientIp != null && !clientIp.startsWith("192.168.") && !"127.0.0.1".equals(clientIp) && !"0:0:0:0:0:0:0:1".equals(clientIp)) {
+            IpLocation loc = resolveIpToLocation(clientIp);
+            if (loc != null) {
+                city = loc.city();
+                country = loc.country();
+                latitude = loc.latitude();
+                longitude = loc.longitude();
+            }
+        }
+
         // -- create transaction record (status PENDING until fraud check) --
         Long clientId = senderAccount.getPackageAccount().getClient().getId();
         Transaction transaction = new Transaction();
@@ -109,10 +133,11 @@ public class TransactionService {
         transaction.setCardholderName(card.getCardholderName());
         transaction.setCreatedAt(LocalDateTime.now());
         transaction.setDescription(request.getDescription());
-        transaction.setLatitude(request.getLatitude());
-        transaction.setLongitude(request.getLongitude());
-        transaction.setCity(request.getCity());
-        transaction.setCountry(request.getCountry());
+        transaction.setClientIp(clientIp);
+        transaction.setLatitude(latitude != null ? latitude : 0.0);
+        transaction.setLongitude(longitude != null ? longitude : 0.0);
+        transaction.setCity(city != null ? city : "");
+        transaction.setCountry(country != null ? country : "");
         Transaction saved = transactionRepository.save(transaction);
 
         // -- build event and detect fraud using CEP session (history is already in session) --
@@ -121,9 +146,9 @@ public class TransactionService {
             saved.getId(), clientId, card.getId(),
             senderAccount.getAccountNumber(), receiverAccount.getAccountNumber(),
             request.getAmount(), nowEpoch,
-            request.getLatitude(), request.getLongitude(),
-            request.getCity() != null ? request.getCity() : "",
-            request.getCountry() != null ? request.getCountry() : ""
+            saved.getLatitude(), saved.getLongitude(),
+            saved.getCity() != null ? saved.getCity() : "",
+            saved.getCountry() != null ? saved.getCountry() : ""
         );
 
         List<SuspiciousTransactionFact> fraudResults =
@@ -159,18 +184,45 @@ public class TransactionService {
     }
 
     @Transactional
-    public boolean approveTransaction(Long transactionId, Long clientId) {
-        List<Transaction> matching = transactionRepository.findByIdAndClientId(transactionId, clientId);
-        if (matching.isEmpty()) return false;
-        Transaction tx = matching.get(0);
-        if (!"SUSPICIOUS".equals(tx.getStatus())) return false;
+    public String approveTransaction(Long transactionId, Long clientId) {
+        Transaction tx = transactionRepository.findById(transactionId).orElse(null);
+        if (tx == null) {
+            log.warn("approveTransaction: transaction {} not found", transactionId);
+            return "Transaction not found";
+        }
+        if (!"SUSPICIOUS".equals(tx.getStatus())) {
+            log.warn("approveTransaction: transaction {} status is {}, not SUSPICIOUS", transactionId, tx.getStatus());
+            return "Transaction is not in suspicious state";
+        }
 
-        BankAccount senderAccount = bankAccountRepository.findByAccountNumber(tx.getSenderAccountNumber())
+        BankAccount senderAccount = bankAccountRepository.findByAccountNumberWithClient(tx.getSenderAccountNumber())
             .orElse(null);
+        if (senderAccount == null) {
+            log.warn("approveTransaction: sender account {} not found", tx.getSenderAccountNumber());
+            return "Sender account not found";
+        }
+        if (senderAccount.getPackageAccount() == null
+            || senderAccount.getPackageAccount().getClient() == null) {
+            log.warn("approveTransaction: sender account {} has no package account or client", tx.getSenderAccountNumber());
+            return "Sender account has no package account";
+        }
+        if (!senderAccount.getPackageAccount().getClient().getId().equals(clientId)) {
+            log.warn("approveTransaction: client mismatch. Tx client: {}, caller client: {}",
+                senderAccount.getPackageAccount().getClient().getId(), clientId);
+            return "Transaction does not belong to you";
+        }
+
         BankAccount receiverAccount = bankAccountRepository.findByAccountNumber(tx.getReceiverAccountNumber())
             .orElse(null);
-        if (senderAccount == null || receiverAccount == null) return false;
-        if (senderAccount.getBalance() < tx.getAmount()) return false;
+        if (receiverAccount == null) {
+            log.warn("approveTransaction: receiver account {} not found", tx.getReceiverAccountNumber());
+            return "Receiver account not found";
+        }
+        if (senderAccount.getBalance() < tx.getAmount()) {
+            log.warn("approveTransaction: insufficient funds. Balance: {}, needed: {}",
+                senderAccount.getBalance(), tx.getAmount());
+            return "Insufficient funds";
+        }
 
         senderAccount.setBalance(senderAccount.getBalance() - tx.getAmount());
         receiverAccount.setBalance(receiverAccount.getBalance() + tx.getAmount());
@@ -179,18 +231,95 @@ public class TransactionService {
 
         tx.setStatus("APPROVED");
         transactionRepository.save(tx);
-        return true;
+        return null;
     }
 
     @Transactional
-    public boolean rejectTransaction(Long transactionId, Long clientId) {
-        List<Transaction> matching = transactionRepository.findByIdAndClientId(transactionId, clientId);
-        if (matching.isEmpty()) return false;
-        Transaction tx = matching.get(0);
-        if (!"SUSPICIOUS".equals(tx.getStatus())) return false;
+    public String rejectTransaction(Long transactionId, Long clientId) {
+        Transaction tx = transactionRepository.findById(transactionId).orElse(null);
+        if (tx == null) {
+            log.warn("rejectTransaction: transaction {} not found", transactionId);
+            return "Transaction not found";
+        }
+        if (!"SUSPICIOUS".equals(tx.getStatus())) {
+            log.warn("rejectTransaction: transaction {} status is {}, not SUSPICIOUS", transactionId, tx.getStatus());
+            return "Transaction is not in suspicious state";
+        }
+
+        BankAccount senderAccount = bankAccountRepository.findByAccountNumberWithClient(tx.getSenderAccountNumber())
+            .orElse(null);
+        if (senderAccount == null) {
+            log.warn("rejectTransaction: sender account {} not found", tx.getSenderAccountNumber());
+            return "Sender account not found";
+        }
+        if (senderAccount.getPackageAccount() == null
+            || senderAccount.getPackageAccount().getClient() == null) {
+            log.warn("rejectTransaction: sender account {} has no package account or client", tx.getSenderAccountNumber());
+            return "Sender account has no package account";
+        }
+        if (!senderAccount.getPackageAccount().getClient().getId().equals(clientId)) {
+            log.warn("rejectTransaction: client mismatch. Tx client: {}, caller client: {}",
+                senderAccount.getPackageAccount().getClient().getId(), clientId);
+            return "Transaction does not belong to you";
+        }
+
         tx.setStatus("REJECTED");
         transactionRepository.save(tx);
-        return true;
+        return null;
+    }
+
+    private String resolveClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("X-Real-IP");
+        }
+        if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+        log.debug("Resolved client IP: {}", ip);
+        return ip;
+    }
+
+    private record IpLocation(String city, String country, double latitude, double longitude) {}
+
+    private IpLocation resolveIpToLocation(String ip) {
+        try {
+            InetAddress inet = InetAddress.getByName(ip);
+            if (inet.isSiteLocalAddress() || inet.isLoopbackAddress()) {
+                return null;
+            }
+        } catch (Exception e) {
+            return null;
+        }
+        // Free IP geolocation API fallback
+        try {
+            java.net.URL url = new java.net.URL("http://ip-api.com/json/" + ip + "?fields=city,country,lat,lon,status");
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(3000);
+            conn.setReadTimeout(3000);
+            conn.setRequestMethod("GET");
+            int responseCode = conn.getResponseCode();
+            if (responseCode == 200) {
+                String json = new String(conn.getInputStream().readAllBytes());
+                conn.disconnect();
+                com.fasterxml.jackson.databind.JsonNode node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(json);
+                if ("success".equals(node.get("status").asText())) {
+                    String city = node.get("city").asText("");
+                    String country = node.get("country").asText("");
+                    double lat = node.get("lat").asDouble();
+                    double lon = node.get("lon").asDouble();
+                    log.info("IP location resolved: {} -> {}/{}({},{})", ip, city, country, lat, lon);
+                    return new IpLocation(city, country, lat, lon);
+                }
+            }
+            conn.disconnect();
+        } catch (Exception e) {
+            log.debug("Failed to resolve IP location for {}: {}", ip, e.getMessage());
+        }
+        return null;
     }
 
     private String maskCardNumber(String cardNumber) {

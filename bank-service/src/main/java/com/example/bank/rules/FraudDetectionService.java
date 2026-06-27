@@ -76,7 +76,7 @@ public class FraudDetectionService {
         for (Transaction tx : history) {
             Long clientId = accountToClient.get(tx.getSenderAccountNumber());
             if (clientId == null) {
-                BankAccount acc = bankAccountRepository.findByAccountNumber(tx.getSenderAccountNumber()).orElse(null);
+                BankAccount acc = bankAccountRepository.findByAccountNumberWithClient(tx.getSenderAccountNumber()).orElse(null);
                 if (acc != null && acc.getPackageAccount() != null && acc.getPackageAccount().getClient() != null) {
                     clientId = acc.getPackageAccount().getClient().getId();
                     accountToClient.put(tx.getSenderAccountNumber(), clientId);
@@ -85,13 +85,21 @@ public class FraudDetectionService {
             if (clientId == null) continue;
 
             long txEpoch = tx.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+            double histLat = tx.getLatitude() != null ? tx.getLatitude() : 0.0;
+            double histLon = tx.getLongitude() != null ? tx.getLongitude() : 0.0;
+            String histCity = tx.getCity() != null ? tx.getCity() : "";
+            String histCountry = tx.getCountry() != null ? tx.getCountry() : "";
+
+            // Skip salary/employer transactions that don't have real location data
+            if (tx.getSenderAccountNumber().startsWith("EMPLOYER_") && histLat == 0.0 && histLon == 0.0) {
+                continue;
+            }
+
             CardTransactionEvent histEvent = new CardTransactionEvent(
                 tx.getId(), clientId, null,
                 tx.getSenderAccountNumber(), tx.getReceiverAccountNumber(),
                 tx.getAmount(), txEpoch,
-                tx.getLatitude(), tx.getLongitude(),
-                tx.getCity() != null ? tx.getCity() : "",
-                tx.getCountry() != null ? tx.getCountry() : ""
+                histLat, histLon, histCity, histCountry
             );
             ep.insert(histEvent);
         }

@@ -12,11 +12,11 @@ end
 
 rule "MANY_SMALL_TRANSACTIONS"
     when
-        $t: CardTransactionEvent($cId: clientId, amount < 20.0) from entry-point "card-transactions"
+        $t: CardTransactionEvent($cId: clientId, amount < 2500.0) from entry-point "card-transactions"
         Number(intValue >= 4) from accumulate(
             $other: CardTransactionEvent(
                 clientId == $cId,
-                amount < 20.0,
+                amount < 2500.0,
                 this != $t,
                 this before[0s, 10m] $t
             ) from entry-point "card-transactions",
@@ -25,17 +25,17 @@ rule "MANY_SMALL_TRANSACTIONS"
         not SuspiciousTransactionFact(transactionId == $t.transactionId, reason str[startsWith] "Many small")
     then
         insert(new SuspiciousTransactionFact($t.getTransactionId(),
-            "Many small transactions under 20 EUR within 10 minutes"));
+            "Many small transactions under 2500 RSD within 10 minutes"));
 end
 
 rule "LARGE_NIGHT_TRANSACTION"
     when
-        $t: CardTransactionEvent($cId: clientId, amount > 5000.0) from entry-point "card-transactions"
+        $t: CardTransactionEvent($cId: clientId, amount > 500000.0) from entry-point "card-transactions"
         eval($t.getHour() >= 0 && $t.getHour() < 5)
         not SuspiciousTransactionFact(transactionId == $t.transactionId, reason str[startsWith] "Large night")
     then
         insert(new SuspiciousTransactionFact($t.getTransactionId(),
-            "Large night transaction: " + $t.getAmount() + " EUR between 00:00-05:00"));
+            "Large night transaction: " + $t.getAmount() + " RSD between 00:00-05:00"));
 end
 
 rule "UNUSUAL_TRANSACTION_AMOUNT"

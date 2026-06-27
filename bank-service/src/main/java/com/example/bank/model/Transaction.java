@@ -42,16 +42,19 @@ public class Transaction {
     private String fraudReason;
 
     @Column
-    private double latitude;
+    private Double latitude;
 
     @Column
-    private double longitude;
+    private Double longitude;
 
     @Column
     private String city;
 
     @Column
     private String country;
+
+    @Column(name = "client_ip")
+    private String clientIp;
 
     public Transaction() {
     }
@@ -144,19 +147,19 @@ public class Transaction {
         this.fraudReason = fraudReason;
     }
 
-    public double getLatitude() {
+    public Double getLatitude() {
         return latitude;
     }
 
-    public void setLatitude(double latitude) {
+    public void setLatitude(Double latitude) {
         this.latitude = latitude;
     }
 
-    public double getLongitude() {
+    public Double getLongitude() {
         return longitude;
     }
 
-    public void setLongitude(double longitude) {
+    public void setLongitude(Double longitude) {
         this.longitude = longitude;
     }
 
@@ -174,5 +177,13 @@ public class Transaction {
 
     public void setCountry(String country) {
         this.country = country;
+    }
+
+    public String getClientIp() {
+        return clientIp;
+    }
+
+    public void setClientIp(String clientIp) {
+        this.clientIp = clientIp;
     }
 }

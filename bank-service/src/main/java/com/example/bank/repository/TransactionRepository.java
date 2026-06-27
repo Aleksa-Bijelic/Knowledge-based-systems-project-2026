@@ -18,6 +18,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     @Query("SELECT t FROM Transaction t WHERE t.senderAccountNumber = :account AND t.status = 'COMPLETED' ORDER BY t.createdAt DESC")
     List<Transaction> findRecentCompletedBySenderAccount(@Param("account") String account);
 
+    List<Transaction> findBySenderAccountNumberAndStatusIn(String senderAccountNumber, List<String> statuses);
+
     @Query("SELECT t FROM Transaction t WHERE t.senderAccountNumber IN :accounts AND t.status IN ('COMPLETED', 'APPROVED') ORDER BY t.createdAt DESC")
     List<Transaction> findCompletedBySenderAccounts(@Param("accounts") List<String> accounts);
 
