@@ -12,6 +12,7 @@ import com.example.bookstore.repository.OrderRepository;
 import com.example.bookstore.rules.DiscountContext;
 import com.example.bookstore.rules.OrderDiscountService;
 import com.example.bookstore.service.BankPaymentService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -39,7 +40,8 @@ public class OrderController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createOrder(@RequestBody OrderRequest request) {
+    public ResponseEntity<?> createOrder(@RequestBody OrderRequest request,
+                                          HttpServletRequest httpRequest) {
         try {
             Order order = buildOrderFromRequest(request);
             DiscountContext discountContext = discountService.evaluate(order);
@@ -61,12 +63,17 @@ public class OrderController {
                     return ResponseEntity.badRequest().body("Cardholder name is required for card payment");
                 }
 
+                String clientIp = request.getClientIp();
+                if (clientIp == null || clientIp.isBlank()) {
+                    clientIp = resolveClientIp(httpRequest);
+                }
                 Map<String, Object> paymentResult = bankPaymentService.processCardPayment(
                         request.getCardNumber(),
                         request.getCardCvv(),
                         request.getCardExpirationDate(),
                         request.getCardholderName(),
-                        order.getFinalAmount()
+                        order.getFinalAmount(),
+                        clientIp
                 );
 
                 Boolean success = (Boolean) paymentResult.get("success");
@@ -172,6 +179,20 @@ public class OrderController {
     public ResponseEntity<List<Order>> getUserOrders(@PathVariable String username) {
         List<Order> orders = orderRepository.findByCustomerUsername(username);
         return ResponseEntity.ok(orders);
+    }
+
+    private String resolveClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("X-Real-IP");
+        }
+        if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+        return ip;
     }
 }
 

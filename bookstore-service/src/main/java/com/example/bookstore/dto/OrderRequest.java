@@ -10,6 +10,15 @@ public class OrderRequest {
     private String cardCvv;
     private String cardExpirationDate;
     private String cardholderName;
+    private String clientIp;
+
+    public String getClientIp() {
+        return clientIp;
+    }
+
+    public void setClientIp(String clientIp) {
+        this.clientIp = clientIp;
+    }
 
     public String getCustomerUsername() {
         return customerUsername;

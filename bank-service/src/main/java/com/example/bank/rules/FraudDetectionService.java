@@ -116,8 +116,10 @@ public class FraudDetectionService {
             Collection<?> suspiciousFacts = kieSession.getObjects(
                 o -> o instanceof SuspiciousTransactionFact
             );
+            // Copy to list first to avoid ConcurrentModificationException when deleting
+            List<Object> toDelete = new ArrayList<>(suspiciousFacts);
             List<SuspiciousTransactionFact> result = new ArrayList<>();
-            for (Object fact : suspiciousFacts) {
+            for (Object fact : toDelete) {
                 SuspiciousTransactionFact stf = (SuspiciousTransactionFact) fact;
                 if (stf.getTransactionId().equals(event.getTransactionId())) {
                     result.add(stf);

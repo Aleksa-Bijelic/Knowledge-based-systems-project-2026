@@ -104,20 +104,27 @@ public class TransactionService {
         }
 
         // -- resolve IP and location --
-        String clientIp = resolveClientIp(httpRequest);
+        // Priority: 1) forwarded clientIp from request body, 2) HttpServletRequest remote address
+        String clientIp = request.getClientIp();
+        if (clientIp == null || clientIp.isBlank()) {
+            clientIp = resolveClientIp(httpRequest);
+        }
         String city = request.getCity();
         String country = request.getCountry();
         Double latitude = request.getLatitude();
         Double longitude = request.getLongitude();
 
-        // If city/country not provided explicitly, derive from IP
-        if ((city == null || city.isBlank()) && clientIp != null && !clientIp.startsWith("192.168.") && !"127.0.0.1".equals(clientIp) && !"0:0:0:0:0:0:0:1".equals(clientIp)) {
+        // If city not provided explicitly, try to derive from IP
+        if ((city == null || city.isBlank()) && clientIp != null && !clientIp.isBlank()) {
             IpLocation loc = resolveIpToLocation(clientIp);
             if (loc != null) {
                 city = loc.city();
                 country = loc.country();
                 latitude = loc.latitude();
                 longitude = loc.longitude();
+                log.info("Location resolved from IP {}: {}, {} ({},{})", clientIp, city, country, latitude, longitude);
+            } else {
+                log.debug("Could not resolve location from IP {}", clientIp);
             }
         }
 

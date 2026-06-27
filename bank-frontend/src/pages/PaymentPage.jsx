@@ -15,6 +15,62 @@ function PaymentPage({ token }) {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  const [clientIp, setClientIp] = useState('');
+
+  // Auto-detect public IP and location on mount
+  useEffect(() => {
+    setDetectingLocation(true);
+    // Detect public IP first
+    fetch('https://api.ipify.org?format=json')
+      .then(r => r.json())
+      .then(data => { if (data.ip) setClientIp(data.ip); })
+      .catch(() => {});
+
+    // Try browser geolocation first for precise lat/lon
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setLatitude(pos.coords.latitude.toFixed(4));
+          setLongitude(pos.coords.longitude.toFixed(4));
+          setDetectingLocation(false);
+          // Reverse geocode using free API
+          fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&localityLanguage=en`)
+            .then(r => r.json())
+            .then(data => {
+              if (data.city) setCity(data.city);
+              if (data.countryName) setCountry(data.countryName);
+            })
+            .catch(() => {});
+        },
+        () => {
+          setDetectingLocation(false);
+          // Geolocation denied/failed - try IP-based geolocation
+          fetch('https://ipapi.co/json/')
+            .then(r => r.json())
+            .then(data => {
+              if (data.city) setCity(data.city);
+              if (data.country_name) setCountry(data.country_name);
+              if (data.latitude) setLatitude(data.latitude.toString());
+              if (data.longitude) setLongitude(data.longitude.toString());
+            })
+            .catch(() => {});
+        },
+        { timeout: 5000 }
+      );
+    } else {
+      // No geolocation API - try IP-based
+      fetch('https://ipapi.co/json/')
+        .then(r => r.json())
+        .then(data => {
+          if (data.city) setCity(data.city);
+          if (data.country_name) setCountry(data.country_name);
+          if (data.latitude) setLatitude(data.latitude.toString());
+          if (data.longitude) setLongitude(data.longitude.toString());
+        })
+        .catch(() => setDetectingLocation(false));
+    }
+  }, []);
 
   useEffect(() => {
     request('/package-accounts', {
@@ -50,6 +106,7 @@ function PaymentPage({ token }) {
         longitude: longitude ? parseFloat(longitude) : 0,
         city: city || '',
         country: country || '',
+        clientIp: clientIp || '',
       };
 
       const data = await request('/payments/process', {
@@ -139,47 +196,56 @@ function PaymentPage({ token }) {
             </div>
           </div>
 
-          <div className="form-grid">
-            <div className="form-row">
-              <label>Latitude</label>
-              <input
-                type="number"
-                step="any"
-                value={latitude}
-                onChange={(e) => setLatitude(e.target.value)}
-                placeholder="e.g. 45.8150"
-              />
+          <fieldset className="location-fieldset">
+            <legend>
+              Transaction Location (auto-detected)
+              {detectingLocation && <span className="detecting-location"> detecting...</span>}
+            </legend>
+            <p className="form-hint">
+              Used by fraud detection. Auto-detected from your browser. Click "Re-detect" if incorrect.
+            </p>
+            <div className="form-grid">
+              <div className="form-row">
+                <label>Latitude</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={latitude}
+                  onChange={(e) => setLatitude(e.target.value)}
+                  placeholder="e.g. 45.8150"
+                />
+              </div>
+              <div className="form-row">
+                <label>Longitude</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={longitude}
+                  onChange={(e) => setLongitude(e.target.value)}
+                  placeholder="e.g. 15.9819"
+                />
+              </div>
             </div>
-            <div className="form-row">
-              <label>Longitude</label>
-              <input
-                type="number"
-                step="any"
-                value={longitude}
-                onChange={(e) => setLongitude(e.target.value)}
-                placeholder="e.g. 15.9819"
-              />
-            </div>
-          </div>
 
-          <div className="form-grid">
-            <div className="form-row">
-              <label>City</label>
-              <input
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder="e.g. Zagreb"
-              />
+            <div className="form-grid">
+              <div className="form-row">
+                <label>City</label>
+                <input
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="e.g. Zagreb"
+                />
+              </div>
+              <div className="form-row">
+                <label>Country</label>
+                <input
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  placeholder="e.g. Croatia"
+                />
+              </div>
             </div>
-            <div className="form-row">
-              <label>Country</label>
-              <input
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                placeholder="e.g. Croatia"
-              />
-            </div>
-          </div>
+          </fieldset>
 
           <div className="form-actions">
             <button type="button" className="btn btn-secondary" onClick={resetForm}>

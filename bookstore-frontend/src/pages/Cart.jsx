@@ -68,6 +68,14 @@ function Cart({ cart, onUpdateQuantity, onRemoveFromCart, onClearCart, token, us
     cardExpirationDate: '',
     cardholderName: '',
   });
+  const [publicIp, setPublicIp] = useState('');
+
+  useEffect(() => {
+    fetch('https://api.ipify.org?format=json')
+      .then(r => r.json())
+      .then(d => setPublicIp(d.ip))
+      .catch(() => setPublicIp(''));
+  }, []);
 
   const cartTotal = cart.reduce((sum, item) => sum + item.book.price * item.quantity, 0);
 
@@ -108,6 +116,7 @@ function Cart({ cart, onUpdateQuantity, onRemoveFromCart, onClearCart, token, us
       const orderRequest = {
         customerUsername: username,
         paymentMethod: paymentMethod,
+        clientIp: publicIp || undefined,
         items: cart.map((item) => ({
           bookId: item.book.id,
           quantity: item.quantity,

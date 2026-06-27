@@ -13,6 +13,7 @@ public class PaymentRequest {
     private double longitude;
     private String city;
     private String country;
+    private String clientIp;
 
     public PaymentRequest() {
     }
@@ -111,5 +112,13 @@ public class PaymentRequest {
 
     public void setCountry(String country) {
         this.country = country;
+    }
+
+    public String getClientIp() {
+        return clientIp;
+    }
+
+    public void setClientIp(String clientIp) {
+        this.clientIp = clientIp;
     }
 }
