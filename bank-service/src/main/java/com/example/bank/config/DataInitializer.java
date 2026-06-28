@@ -29,14 +29,14 @@ public class DataInitializer {
 
     @Bean
     public CommandLineRunner initDefaultUsers(BankUserRepository bankUserRepository,
-                                               PasswordEncoder passwordEncoder,
-                                               PackageAccountRepository packageAccountRepository,
-                                               BankAccountRepository bankAccountRepository,
-                                               PaymentCardRepository paymentCardRepository,
-                                               TransactionRepository transactionRepository,
-                                               LoanRepository loanRepository,
-                                               LoanRepaymentRepository loanRepaymentRepository,
-                                               BankIdentifierService identifierService) {
+                                                PasswordEncoder passwordEncoder,
+                                                PackageAccountRepository packageAccountRepository,
+                                                BankAccountRepository bankAccountRepository,
+                                                PaymentCardRepository paymentCardRepository,
+                                                TransactionRepository transactionRepository,
+                                                LoanRepository loanRepository,
+                                                LoanRepaymentRepository loanRepaymentRepository,
+                                                BankIdentifierService identifierService) {
         return args -> {
             String officerUsername = "sluzbenik";
             if (!bankUserRepository.existsByUsername(officerUsername)) {
@@ -53,7 +53,11 @@ public class DataInitializer {
                 System.out.println("Created default bank officer: sluzbenik / sluzbenik123");
             }
 
-            // === Client 1: oliva — high income, no existing loans => APPROVED ===
+            // ========================================================================
+            // EXISTING TEST CLIENTS (keep for backward compatibility)
+            // ========================================================================
+
+            // === Client 1: oliva — high income, young, indefinite, no loans => IDEAL ===
             String olivaAcc = createTestClient(bankUserRepository, passwordEncoder, packageAccountRepository,
                     bankAccountRepository, paymentCardRepository, transactionRepository,
                     identifierService,
@@ -61,75 +65,137 @@ public class DataInitializer {
                     LocalDate.of(1990, 7, 22), 150000.0);
             System.out.println("oliva account: " + olivaAcc);
 
-            // === Client 2: marko — unemployed, no income => REJECTED ===
+            // === Client 2: marko — unemployed, no income => REJECT ===
             createTestClient(bankUserRepository, passwordEncoder, packageAccountRepository,
                     bankAccountRepository, paymentCardRepository, transactionRepository,
                     identifierService,
                     "marko", "marko123", "marko@bank.example.com", "Marko", "Markovic",
                     LocalDate.of(1988, 3, 10), 0.0);
 
-            // === Client 3: jovana — 65 years old, 2 existing active loans => HIGH RISK ===
+            // === Client 3: jovana — old age (67), high income, 2 active loans => HIGH RISK ===
             String jovanaAcc = createTestClient(bankUserRepository, passwordEncoder, packageAccountRepository,
                     bankAccountRepository, paymentCardRepository, transactionRepository,
                     identifierService,
                     "jovana", "jovana123", "jovana@bank.example.com", "Jovana", "Jovanovic",
                     LocalDate.of(1959, 11, 5), 200000.0);
-            createExistingLoan(loanRepository, loanRepaymentRepository, bankUserRepository,
-                    "jovana", 2000000.0, 120, 25000.0, true);
-            createExistingLoan(loanRepository, loanRepaymentRepository, bankUserRepository,
-                    "jovana", 1000000.0, 60, 20000.0, false);
+            createLoanWithRepayments(loanRepository, loanRepaymentRepository, bankUserRepository,
+                    "jovana", 2000000.0, 120, 25000.0, "ACTIVE", true);
+            createLoanWithRepayments(loanRepository, loanRepaymentRepository, bankUserRepository,
+                    "jovana", 1000000.0, 60, 20000.0, "ACTIVE", true);
 
-            // === Client 4: ivan — low income, 1 existing loan => REJECT (insufficient) ===
+            // === Client 4: ivan — low income (25000), 1 active loan (16000/m) => DTI FAIL ===
             String ivanAcc = createTestClient(bankUserRepository, passwordEncoder, packageAccountRepository,
                     bankAccountRepository, paymentCardRepository, transactionRepository,
                     identifierService,
                     "ivan", "ivan123", "ivan@bank.example.com", "Ivan", "Ivanovic",
                     LocalDate.of(1995, 6, 20), 25000.0);
-            createExistingLoan(loanRepository, loanRepaymentRepository, bankUserRepository,
-                    "ivan", 500000.0, 36, 16000.0, true);
+            createLoanWithRepayments(loanRepository, loanRepaymentRepository, bankUserRepository,
+                    "ivan", 500000.0, 36, 16000.0, "ACTIVE", true);
 
-            // === Client 5: milica — very low income => REJECT (insufficient) ===
+            // === Client 5: milica — very low income (8000) => DTI FAIL ===
             createTestClient(bankUserRepository, passwordEncoder, packageAccountRepository,
                     bankAccountRepository, paymentCardRepository, transactionRepository,
                     identifierService,
                     "milica", "milica123", "milica@bank.example.com", "Milica", "Milic",
                     LocalDate.of(1992, 4, 15), 8000.0);
 
-            // === Create oliva's bookstore account ===
-            String bookstoreAccountName = "Bookstore Revenue";
-            if (!packageAccountRepository.existsByNameAndClientUsername(bookstoreAccountName, "oliva")) {
-                BankUser olivaClient = bankUserRepository.findByUsername("oliva")
-                        .orElseThrow(() -> new RuntimeException("Client oliva not found"));
+            // ========================================================================
+            // NEW COMPREHENSIVE TEST CLIENTS
+            // ========================================================================
 
-                PackageAccount pkg = new PackageAccount();
-                pkg.setName(bookstoreAccountName);
-                pkg.setClient(olivaClient);
-                pkg.setCreatedAt(LocalDateTime.now());
-                PackageAccount savedPackage = packageAccountRepository.save(pkg);
+            // === Client 6: stefan — ideal: young (28), high income, indefinite, no loans ===
+            createTestClient(bankUserRepository, passwordEncoder, packageAccountRepository,
+                    bankAccountRepository, paymentCardRepository, transactionRepository,
+                    identifierService,
+                    "stefan", "stefan123", "stefan@bank.example.com", "Stefan", "Stefanovic",
+                    LocalDate.of(1998, 4, 10), 120000.0);
 
-                BankAccount account = new BankAccount();
-                account.setAccountNumber(identifierService.generateAccountNumber());
-                account.setBalance(0.0);
-                account.setCurrency("RSD");
-                account.setCreatedAt(LocalDateTime.now());
-                account.setPackageAccount(savedPackage);
-                BankAccount savedAccount = bankAccountRepository.save(account);
+            // === Client 7: ana — fixed-term, good credit (1 active + 1 paid loan) ===
+            createTestClient(bankUserRepository, passwordEncoder, packageAccountRepository,
+                    bankAccountRepository, paymentCardRepository, transactionRepository,
+                    identifierService,
+                    "ana", "ana123", "ana@bank.example.com", "Ana", "Anic",
+                    LocalDate.of(1981, 3, 22), 90000.0);
+            createLoanWithRepayments(loanRepository, loanRepaymentRepository, bankUserRepository,
+                    "ana", 600000.0, 60, 10000.0, "ACTIVE", true);
+            // Paid-off loan for good credit history
+            createLoanWithRepayments(loanRepository, loanRepaymentRepository, bankUserRepository,
+                    "ana", 200000.0, 24, 9000.0, "PAID", true);
 
-                PaymentCard card = new PaymentCard();
-                card.setCardNumber(identifierService.generateCardNumber());
-                card.setCardholderName("Oliva Maslina");
-                card.setExpirationDate(LocalDate.now().plusYears(3).withDayOfMonth(1));
-                card.setCvv(identifierService.generateCvv());
-                card.setCreatedAt(LocalDateTime.now());
-                card.setPackageAccount(savedPackage);
-                paymentCardRepository.save(card);
+            // === Client 8: nikola — older (58), 2 active loans => age risk factors ===
+            createTestClient(bankUserRepository, passwordEncoder, packageAccountRepository,
+                    bankAccountRepository, paymentCardRepository, transactionRepository,
+                    identifierService,
+                    "nikola", "nikola123", "nikola@bank.example.com", "Nikola", "Nikolic",
+                    LocalDate.of(1968, 1, 15), 100000.0);
+            createLoanWithRepayments(loanRepository, loanRepaymentRepository, bankUserRepository,
+                    "nikola", 800000.0, 84, 12000.0, "ACTIVE", true);
+            createLoanWithRepayments(loanRepository, loanRepaymentRepository, bankUserRepository,
+                    "nikola", 500000.0, 60, 15000.0, "ACTIVE", true);
 
-                System.out.println("=== BOOKSTORE ACCOUNT CREATED ===");
-                System.out.println("Account number: " + savedAccount.getAccountNumber());
-                System.out.println("=================================");
-            }
+            // === Client 9: maja — old (62), unemployed, no income => REJECT ===
+            createTestClient(bankUserRepository, passwordEncoder, packageAccountRepository,
+                    bankAccountRepository, paymentCardRepository, transactionRepository,
+                    identifierService,
+                    "maja", "maja123", "maja@bank.example.com", "Maja", "Majic",
+                    LocalDate.of(1964, 11, 30), 0.0);
 
-            // === Create fraud detection test history for oliva ===
+            // === Client 10: petar — short tenure (2 months, INDEFINITE) => TENURE FAIL ===
+            BankUser petar = createUserOnly(bankUserRepository, passwordEncoder,
+                    "petar", "petar123", "petar@bank.example.com", "Petar", "Petrovic",
+                    LocalDate.of(2004, 5, 18));
+            String petarAcc = createAccountWithSalary(bankUserRepository, packageAccountRepository,
+                    bankAccountRepository, paymentCardRepository, transactionRepository,
+                    identifierService, petar, 60000.0, 2);
+
+            // === Client 11: sofija — fixed-term, contract ending soon (4 months left) ===
+            createTestClient(bankUserRepository, passwordEncoder, packageAccountRepository,
+                    bankAccountRepository, paymentCardRepository, transactionRepository,
+                    identifierService,
+                    "sofija", "sofija123", "sofija@bank.example.com", "Sofija", "Sofijic",
+                    LocalDate.of(1986, 7, 8), 130000.0);
+
+            // === Client 12: luka — delinquent repayments (late/missed) ===
+            createTestClient(bankUserRepository, passwordEncoder, packageAccountRepository,
+                    bankAccountRepository, paymentCardRepository, transactionRepository,
+                    identifierService,
+                    "luka", "luka123", "luka@bank.example.com", "Luka", "Lukic",
+                    LocalDate.of(1976, 2, 14), 80000.0);
+            createLoanWithRepayments(loanRepository, loanRepaymentRepository, bankUserRepository,
+                    "luka", 400000.0, 48, 12000.0, "ACTIVE", false);
+
+            // === Client 13: dunja — 3 active loans => EXCESSIVE LOANS ===
+            createTestClient(bankUserRepository, passwordEncoder, packageAccountRepository,
+                    bankAccountRepository, paymentCardRepository, transactionRepository,
+                    identifierService,
+                    "dunja", "dunja123", "dunja@bank.example.com", "Dunja", "Dunjic",
+                    LocalDate.of(1991, 8, 25), 70000.0);
+            createLoanWithRepayments(loanRepository, loanRepaymentRepository, bankUserRepository,
+                    "dunja", 200000.0, 36, 5000.0, "ACTIVE", true);
+            createLoanWithRepayments(loanRepository, loanRepaymentRepository, bankUserRepository,
+                    "dunja", 350000.0, 48, 8000.0, "ACTIVE", true);
+            createLoanWithRepayments(loanRepository, loanRepaymentRepository, bankUserRepository,
+                    "dunja", 250000.0, 36, 6000.0, "ACTIVE", true);
+
+            // === Client 14: lazar — old (70), good income, no loans => AGE+TERM LIMIT ===
+            createTestClient(bankUserRepository, passwordEncoder, packageAccountRepository,
+                    bankAccountRepository, paymentCardRepository, transactionRepository,
+                    identifierService,
+                    "lazar", "lazar123", "lazar@bank.example.com", "Lazar", "Lazarevic",
+                    LocalDate.of(1956, 1, 5), 50000.0);
+
+            // === Client 15: tamara — has a DEFAULTED loan ===
+            createTestClient(bankUserRepository, passwordEncoder, packageAccountRepository,
+                    bankAccountRepository, paymentCardRepository, transactionRepository,
+                    identifierService,
+                    "tamara", "tamara123", "tamara@bank.example.com", "Tamara", "Tamaric",
+                    LocalDate.of(1984, 4, 30), 85000.0);
+            createLoanWithRepayments(loanRepository, loanRepaymentRepository, bankUserRepository,
+                    "tamara", 700000.0, 60, 20000.0, "DEFAULTED", false);
+
+            // ========================================================================
+            // FRAUD DETECTION TEST HISTORY (oliva only)
+            // ========================================================================
             BankUser olivaClient = bankUserRepository.findByUsername("oliva")
                     .orElseThrow(() -> new RuntimeException("Client oliva not found"));
             List<PackageAccount> olivaPackages = packageAccountRepository.findByClientId(olivaClient.getId());
@@ -142,17 +208,15 @@ public class DataInitializer {
                     BankAccount mainAccount = mainAccounts.get(0);
                     String senderAcc = mainAccount.getAccountNumber();
 
-                    // Find any other bank account to use as receiver for history transactions
                     List<BankAccount> allAccounts = bankAccountRepository.findAll();
                     String receiverAcc = allAccounts.stream()
                             .map(BankAccount::getAccountNumber)
                             .filter(acc -> !acc.equals(senderAcc))
                             .findFirst().orElse(senderAcc);
 
-                    // Only insert if no history transactions exist yet
                     List<Transaction> existingHistory = transactionRepository.findBySenderAccountNumberAndStatusIn(
                             senderAcc, List.of("COMPLETED", "APPROVED"));
-                    if (existingHistory.size() <= 6) { // only salary tx so far
+                    if (existingHistory.size() <= 6) {
                         Object[][] historyData = {
                             {1500.0, 45.8150, 15.9819, "Zagreb", "Croatia", "Coffee shop"},
                             {1200.0, 45.8120, 15.9780, "Zagreb", "Croatia", "Lunch"},
@@ -200,7 +264,6 @@ public class DataInitializer {
                                     String firstName, String lastName, LocalDate dateOfBirth,
                                     double monthlyIncome) {
         if (bankUserRepository.existsByUsername(username)) {
-            // Find their account number
             List<PackageAccount> pkgs = packageAccountRepository.findByClientId(
                     bankUserRepository.findByUsername(username).get().getId());
             if (!pkgs.isEmpty()) {
@@ -220,7 +283,6 @@ public class DataInitializer {
         client.setDateOfBirth(dateOfBirth);
         client.setCreatedAt(LocalDateTime.now());
         bankUserRepository.save(client);
-        System.out.println("Created bank client: " + username + " / " + rawPassword);
 
         String pkgName = "Personal - " + username;
         PackageAccount pkg = new PackageAccount();
@@ -231,7 +293,7 @@ public class DataInitializer {
 
         BankAccount account = new BankAccount();
         account.setAccountNumber(identifierService.generateAccountNumber());
-        account.setBalance(monthlyIncome * 2);
+        account.setBalance(monthlyIncome * 3);
         account.setCurrency("RSD");
         account.setCreatedAt(LocalDateTime.now());
         account.setPackageAccount(savedPackage);
@@ -247,7 +309,7 @@ public class DataInitializer {
         paymentCardRepository.save(card);
 
         if (monthlyIncome > 0) {
-            for (int i = 1; i <= 6; i++) {
+            for (int i = 0; i < 6; i++) {
                 Transaction salary = new Transaction();
                 salary.setSenderAccountNumber("EMPLOYER_RSD");
                 salary.setReceiverAccountNumber(savedAccount.getAccountNumber());
@@ -265,59 +327,154 @@ public class DataInitializer {
         return savedAccount.getAccountNumber();
     }
 
-    private void createExistingLoan(LoanRepository loanRepository,
-                                     LoanRepaymentRepository loanRepaymentRepository,
-                                     BankUserRepository bankUserRepository,
-                                     String username,
-                                     double amount, int installments, double monthlyPayment,
-                                     boolean allPaidOnTime) {
+    private BankUser createUserOnly(BankUserRepository bankUserRepository,
+                                     PasswordEncoder passwordEncoder,
+                                     String username, String rawPassword, String email,
+                                     String firstName, String lastName, LocalDate dateOfBirth) {
+        if (bankUserRepository.existsByUsername(username)) {
+            return bankUserRepository.findByUsername(username).get();
+        }
+        BankUser client = new BankUser();
+        client.setUsername(username);
+        client.setEmail(email);
+        client.setPassword(passwordEncoder.encode(rawPassword));
+        client.setFirstName(firstName);
+        client.setLastName(lastName);
+        client.setRole("ROLE_CLIENT");
+        client.setDateOfBirth(dateOfBirth);
+        client.setCreatedAt(LocalDateTime.now());
+        bankUserRepository.save(client);
+        System.out.println("Created bank client: " + username + " / " + rawPassword);
+        return client;
+    }
+
+    private String createAccountWithSalary(BankUserRepository bankUserRepository,
+                                            PackageAccountRepository packageAccountRepository,
+                                            BankAccountRepository bankAccountRepository,
+                                            PaymentCardRepository paymentCardRepository,
+                                            TransactionRepository transactionRepository,
+                                            BankIdentifierService identifierService,
+                                            BankUser client, double monthlyIncome, int salaryMonths) {
+        String pkgName = "Personal - " + client.getUsername();
+        PackageAccount pkg = new PackageAccount();
+        pkg.setName(pkgName);
+        pkg.setClient(client);
+        pkg.setCreatedAt(LocalDateTime.now());
+        PackageAccount savedPackage = packageAccountRepository.save(pkg);
+
+        BankAccount account = new BankAccount();
+        account.setAccountNumber(identifierService.generateAccountNumber());
+        account.setBalance(monthlyIncome * 3);
+        account.setCurrency("RSD");
+        account.setCreatedAt(LocalDateTime.now());
+        account.setPackageAccount(savedPackage);
+        BankAccount savedAccount = bankAccountRepository.save(account);
+
+        PaymentCard card = new PaymentCard();
+        card.setCardNumber(identifierService.generateCardNumber());
+        card.setCardholderName(client.getFirstName() + " " + client.getLastName());
+        card.setExpirationDate(LocalDate.now().plusYears(3).withDayOfMonth(1));
+        card.setCvv(identifierService.generateCvv());
+        card.setCreatedAt(LocalDateTime.now());
+        card.setPackageAccount(savedPackage);
+        paymentCardRepository.save(card);
+
+        if (monthlyIncome > 0) {
+            for (int i = 0; i < salaryMonths; i++) {
+                Transaction salary = new Transaction();
+                salary.setSenderAccountNumber("EMPLOYER_RSD");
+                salary.setReceiverAccountNumber(savedAccount.getAccountNumber());
+                salary.setAmount(monthlyIncome);
+                salary.setCurrency("RSD");
+                salary.setStatus("COMPLETED");
+                salary.setCreatedAt(LocalDateTime.now().minusMonths(i).withDayOfMonth(1));
+                salary.setDescription("Monthly salary");
+                transactionRepository.save(salary);
+            }
+        }
+
+        System.out.println("  -> Account: " + savedAccount.getAccountNumber()
+                + ", Balance: " + savedAccount.getBalance() + " RSD (" + salaryMonths + " salary tx)");
+        return savedAccount.getAccountNumber();
+    }
+
+    private void createLoanWithRepayments(LoanRepository loanRepository,
+                                           LoanRepaymentRepository loanRepaymentRepository,
+                                           BankUserRepository bankUserRepository,
+                                           String username,
+                                           double amount, int totalInstallments,
+                                           double monthlyPayment,
+                                           String loanStatus,
+                                           boolean allRepaymentsOnTime) {
         BankUser client = bankUserRepository.findByUsername(username).orElse(null);
         if (client == null) return;
 
-        // Check if this client already has a loan with these params
-        List<com.example.bank.model.Loan> existing = loanRepository.findByClientId(client.getId());
-        for (com.example.bank.model.Loan l : existing) {
-            if (Math.abs(l.getLoanAmount() - amount) < 1) return; // already exists
+        List<Loan> existing = loanRepository.findByClientId(client.getId());
+        for (Loan l : existing) {
+            if (Math.abs(l.getLoanAmount() - amount) < 1) return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        int pastMonths;
+        if ("PAID".equals(loanStatus)) {
+            pastMonths = totalInstallments;
+        } else {
+            pastMonths = Math.min(12, totalInstallments);
         }
 
         Loan loan = new Loan();
         loan.setClientId(client.getId());
         loan.setLoanAmount(amount);
-        loan.setNumberOfInstallments(installments);
+        loan.setNumberOfInstallments(totalInstallments);
         loan.setMonthlyPayment(monthlyPayment);
         loan.setInterestRate(0.05);
-        loan.setRemainingBalance(amount - (monthlyPayment * 12));
-        loan.setStatus("ACTIVE");
+        if ("PAID".equals(loanStatus) || "DEFAULTED".equals(loanStatus)) {
+            loan.setRemainingBalance(0.0);
+        } else {
+            loan.setRemainingBalance(Math.max(0, amount - (monthlyPayment * pastMonths)));
+        }
+        loan.setStatus(loanStatus);
         loan.setOfficerDecision("APPROVED");
         loan.setOfficerUsername("sluzbenik");
-        loan.setApprovedAt(LocalDateTime.now().minusMonths(12));
-        loan.setCreatedAt(LocalDateTime.now().minusMonths(12));
+        loan.setApprovedAt(now.minusMonths(pastMonths));
+        loan.setCreatedAt(now.minusMonths(pastMonths));
         Loan savedLoan = loanRepository.save(loan);
 
-        // Create repayment schedule (12 months of payments)
-        for (int i = 1; i <= 12; i++) {
+        for (int i = pastMonths - 1; i >= 0; i--) {
             LoanRepayment rp = new LoanRepayment();
             rp.setLoanId(savedLoan.getId());
             rp.setAmount(monthlyPayment);
-            rp.setDueDate(LocalDate.now().minusMonths(12 - i).withDayOfMonth(15));
-            rp.setStatus("PAID");
-            rp.setPaidDate(LocalDate.now().minusMonths(12 - i).withDayOfMonth(13));
-            rp.setCreatedAt(LocalDateTime.now().minusMonths(12 - i));
+            rp.setDueDate(LocalDate.now().minusMonths(i).withDayOfMonth(15));
+            rp.setCreatedAt(LocalDate.now().minusMonths(i).atStartOfDay());
+
+            if (!allRepaymentsOnTime && i < 3) {
+                if ("DEFAULTED".equals(loanStatus)) {
+                    rp.setStatus("MISSED");
+                    rp.setPaidDate(null);
+                } else {
+                    rp.setStatus("LATE");
+                    rp.setPaidDate(LocalDate.now().minusMonths(i).withDayOfMonth(25));
+                }
+            } else {
+                rp.setStatus("PAID");
+                rp.setPaidDate(LocalDate.now().minusMonths(i).withDayOfMonth(13));
+            }
             loanRepaymentRepository.save(rp);
         }
 
-        // Create remaining future repayments
-        for (int i = 0; i < installments - 12; i++) {
-            LoanRepayment rp = new LoanRepayment();
-            rp.setLoanId(savedLoan.getId());
-            rp.setAmount(monthlyPayment);
-            rp.setDueDate(LocalDate.now().plusMonths(i).withDayOfMonth(15));
-            rp.setStatus("PENDING");
-            rp.setCreatedAt(LocalDateTime.now());
-            loanRepaymentRepository.save(rp);
+        if ("ACTIVE".equals(loanStatus) && totalInstallments > pastMonths) {
+            for (int i = 0; i < totalInstallments - pastMonths; i++) {
+                LoanRepayment rp = new LoanRepayment();
+                rp.setLoanId(savedLoan.getId());
+                rp.setAmount(monthlyPayment);
+                rp.setDueDate(LocalDate.now().plusMonths(i).withDayOfMonth(15));
+                rp.setStatus("PENDING");
+                rp.setCreatedAt(LocalDateTime.now());
+                loanRepaymentRepository.save(rp);
+            }
         }
 
-        System.out.println("  -> Created existing loan for " + username + ": " + amount + " RSD, "
-                + monthlyPayment + " RSD/month");
+        System.out.println("  -> Created " + loanStatus + " loan for " + username + ": "
+                + amount + " RSD, " + monthlyPayment + " RSD/month");
     }
 }

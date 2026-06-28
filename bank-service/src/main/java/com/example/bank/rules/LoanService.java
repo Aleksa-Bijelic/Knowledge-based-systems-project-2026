@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -233,7 +234,7 @@ public class LoanService {
             }
         }
 
-        double monthlyIncome = estimateMonthlyIncome(uniqueTransactions);
+        double monthlyIncome = estimateMonthlyIncome(uniqueTransactions, clientAccountNumbers);
 
         List<Loan> activeLoans = loanRepository.findByClientIdAndStatus(clientId, "ACTIVE");
         double totalExistingLoanPayments = activeLoans.stream()
@@ -249,19 +250,24 @@ public class LoanService {
         );
     }
 
-    private double estimateMonthlyIncome(List<Transaction> transactions) {
+    private double estimateMonthlyIncome(List<Transaction> transactions, List<String> clientAccountNumbers) {
         LocalDateTime sixMonthsAgo = LocalDateTime.now().minusMonths(6);
         double totalReceived = 0.0;
+        Set<YearMonth> monthsWithIncome = new HashSet<>();
 
         for (Transaction t : transactions) {
             if (t.getCreatedAt().isAfter(sixMonthsAgo)
-                    && t.getReceiverAccountNumber() != null
-                    && t.getStatus().equals("COMPLETED")) {
+                    && clientAccountNumbers.contains(t.getReceiverAccountNumber())
+                    && "COMPLETED".equals(t.getStatus())) {
                 totalReceived += t.getAmount();
+                monthsWithIncome.add(YearMonth.from(t.getCreatedAt()));
             }
         }
 
-        return totalReceived / 6.0;
+        if (totalReceived == 0.0) return 0.0;
+
+        long divisor = Math.max(1, Math.min(monthsWithIncome.size(), 6));
+        return totalReceived / divisor;
     }
 
     private boolean queryExists(KieSession kieSession, String queryName, Object[] args) {
