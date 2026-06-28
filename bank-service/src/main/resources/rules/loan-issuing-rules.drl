@@ -228,6 +228,7 @@ rule "Risk Factor - One or two active loans"
         $req: LoanRequestFact($clientId: clientId)
         exists LoanFact(clientId == $clientId, status == "ACTIVE")
         not hasThreeOrMoreActiveLoans($clientId; )
+        not RiskFactorFact(clientId == $clientId, points == 10.0)
     then
         insert(new RiskFactorFact($clientId, 10.0, "One or two active loans"));
 end
@@ -237,6 +238,7 @@ rule "Risk Factor - Three or more active loans"
     when
         $req: LoanRequestFact($clientId: clientId)
         hasThreeOrMoreActiveLoans($clientId; )
+        not RiskFactorFact(clientId == $clientId, points == 20.0)
     then
         insert(new RiskFactorFact($clientId, 20.0, "Three or more active loans"));
 end
@@ -280,6 +282,7 @@ rule "Positive Credit History - Risk Reduction"
         not hasAnyDefaultedLoan($clientId; )
         not hasAnyDelinquentRepayment($clientId; )
         exists (LoanFact(clientId == $clientId, $loanId: loanId) and LoanRepaymentFact(loanId == $loanId))
+        not PositiveCreditHistoryFact(clientId == $clientId)
     then
         insert(new RiskFactorFact($clientId, -15.0, "Positive credit history - good repayment track record"));
         insert(new PositiveCreditHistoryFact($clientId));
@@ -374,6 +377,7 @@ rule "Decision Reason - Defaulted loan exists"
     when
         $req: LoanRequestFact($clientId: clientId)
         hasAnyDefaultedLoan($clientId; )
+        not DecisionReasonFact(clientId == $clientId, reason == "Client has a loan in DEFAULTED status")
     then
         insert(new DecisionReasonFact($clientId, "Client has a loan in DEFAULTED status"));
 end
@@ -383,6 +387,7 @@ rule "Decision Reason - Excessive active loans"
     when
         $req: LoanRequestFact($clientId: clientId)
         hasThreeOrMoreActiveLoans($clientId; )
+        not DecisionReasonFact(clientId == $clientId, reason == "Client has 3 or more active loans")
     then
         insert(new DecisionReasonFact($clientId, "Client has 3 or more active loans"));
 end
@@ -392,6 +397,7 @@ rule "Decision Reason - Delinquent repayments"
     when
         $req: LoanRequestFact($clientId: clientId)
         hasAnyDelinquentRepayment($clientId; )
+        not DecisionReasonFact(clientId == $clientId, reason == "Client has late or missed repayments")
     then
         insert(new DecisionReasonFact($clientId, "Client has late or missed repayments"));
 end
@@ -429,6 +435,7 @@ rule "Decision Reason - Good credit history"
     salience 20
     when
         PositiveCreditHistoryFact($clientId: clientId)
+        not DecisionReasonFact(clientId == $clientId, reason == "Good credit history - positive repayment track record")
     then
         insert(new DecisionReasonFact($clientId, "Good credit history - positive repayment track record"));
 end

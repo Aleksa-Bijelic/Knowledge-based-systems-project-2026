@@ -1,17 +1,19 @@
 import { useState } from 'react';
-import { FiCheckCircle, FiXCircle, FiAlertTriangle, FiInfo, FiThumbsUp, FiThumbsDown } from 'react-icons/fi';
+import { FiCheckCircle, FiXCircle, FiAlertTriangle, FiInfo, FiThumbsUp, FiThumbsDown, FiShield } from 'react-icons/fi';
 import { request, authHeader } from '../api';
 
 function RiskBadge({ level }) {
   const config = {
-    LOW: { className: 'risk-low', icon: <FiCheckCircle /> },
-    MEDIUM: { className: 'risk-medium', icon: <FiAlertTriangle /> },
-    HIGH: { className: 'risk-high', icon: <FiXCircle /> },
+    LOW: { className: 'risk-low', icon: FiCheckCircle },
+    MEDIUM: { className: 'risk-medium', icon: FiAlertTriangle },
+    HIGH: { className: 'risk-high', icon: FiShield },
+    VERY_HIGH: { className: 'risk-very-high', icon: FiXCircle },
   };
-  const { className, icon } = config[level] || config.LOW;
+  const { className, icon: IconComp } = config[level] || config.LOW;
   return (
     <span className={`risk-badge ${className}`}>
-      {icon} {level}
+      <IconComp size={14} />
+      <span>{level}</span>
     </span>
   );
 }
@@ -95,11 +97,17 @@ function LoanAssessmentResult({ result, token, onDecisionMade }) {
             <span>Assessment Details</span>
           </div>
           <ul>
-            {reasons.map((reason, index) => (
-              <li key={index} className={reason.startsWith('Recommendation') ? 'reason-positive' : 'reason-negative'}>
-                {reason}
-              </li>
-            ))}
+            {[...new Set(reasons)].map((reason, index) => {
+              const isPositive = reason.startsWith('Recommendation')
+                || reason.toLowerCase().includes('good')
+                || reason.toLowerCase().includes('positive');
+              return (
+                <li key={index} className={isPositive ? 'reason-positive' : 'reason-negative'}>
+                  {isPositive ? <FiCheckCircle className="reason-icon" /> : <FiXCircle className="reason-icon" />}
+                  {reason}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

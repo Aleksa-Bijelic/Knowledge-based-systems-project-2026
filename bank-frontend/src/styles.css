@@ -623,6 +623,12 @@ label {
 }
 
 .risk-high {
+  color: #9a3412;
+  background: #ffedd5;
+  border: 1px solid #fed7aa;
+}
+
+.risk-very-high {
   color: #7f1d1d;
   background: #fee2e2;
   border: 1px solid #fecaca;
@@ -656,6 +662,15 @@ label {
   border-radius: 10px;
   margin-bottom: 6px;
   font-size: 0.92rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reason-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
 }
 
 .reason-positive {
