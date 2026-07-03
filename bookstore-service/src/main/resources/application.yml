@@ -23,4 +23,4 @@ jwt:
 bank:
   service:
     url: ${BANK_SERVICE_URL:http://localhost:8082}
-    receiver-account-number: ${BANK_RECEIVER_ACCOUNT:2659904564506841}
+    receiver-account-number: ${BANK_RECEIVER_ACCOUNT:2653213701401820}
